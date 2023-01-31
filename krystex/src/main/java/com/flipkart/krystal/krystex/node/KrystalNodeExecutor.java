@@ -1,12 +1,13 @@
 package com.flipkart.krystal.krystex.node;
 
-import static com.flipkart.krystal.utils.Futures.linkFutures;
+import static com.flipkart.krystal.futures.Futures.exclusivelyLinkFutures;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.concurrent.CompletableFuture.allOf;
 import static java.util.concurrent.CompletableFuture.runAsync;
 import static java.util.concurrent.CompletableFuture.supplyAsync;
 
 import com.flipkart.krystal.data.Inputs;
+import com.flipkart.krystal.futures.CloseableFuture;
 import com.flipkart.krystal.krystex.KrystalExecutor;
 import com.flipkart.krystal.krystex.MainLogicDefinition;
 import com.flipkart.krystal.krystex.RequestId;
@@ -112,7 +113,7 @@ public final class KrystalNodeExecutor implements KrystalExecutor {
       throw new RejectedExecutionException("KrystalNodeExecutor is already closed");
     }
     createDependantNodes(nodeId, DependantChainStart.instance());
-    CompletableFuture<Object> future = new CompletableFuture<>();
+    CompletableFuture<Object> future = new CloseableFuture<>();
     allRequests
         .computeIfAbsent(requestId, r -> new ArrayList<>())
         .add(new NodeExecutionInfo(nodeId, inputs, future));
@@ -208,7 +209,7 @@ public final class KrystalNodeExecutor implements KrystalExecutor {
                                 return valueOrError.value().orElse(null);
                               }
                             });
-                linkFutures(submissionResult, nodeExecutionInfo.future());
+                exclusivelyLinkFutures(submissionResult, nodeExecutionInfo.future());
               });
         });
     unFlushedRequests.forEach(

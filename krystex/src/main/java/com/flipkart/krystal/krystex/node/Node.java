@@ -8,6 +8,7 @@ import com.flipkart.krystal.data.InputValue;
 import com.flipkart.krystal.data.Inputs;
 import com.flipkart.krystal.data.Results;
 import com.flipkart.krystal.data.ValueOrError;
+import com.flipkart.krystal.futures.CloseableFuture;
 import com.flipkart.krystal.krystex.MainLogic;
 import com.flipkart.krystal.krystex.MainLogicDefinition;
 import com.flipkart.krystal.krystex.RequestId;
@@ -73,14 +74,14 @@ public class Node {
       new LinkedHashMap<>();
 
   /** A unique Result future for every requestId. */
-  private final Map<RequestId, CompletableFuture<NodeResponse>> resultsByRequest =
+  private final Map<RequestId, CloseableFuture<NodeResponse>> resultsByRequest =
       new LinkedHashMap<>();
 
   /**
    * A unique {@link ResultFuture} for every new set of Inputs. This acts as a cache so that the
    * same computation is not repeated multiple times .
    */
-  private final Map<Inputs, CompletableFuture<Object>> resultsCache = new LinkedHashMap<>();
+  private final Map<Inputs, CloseableFuture<Object>> resultsCache = new LinkedHashMap<>();
 
   private final Map<RequestId, Boolean> mainLogicExecuted = new LinkedHashMap<>();
 
@@ -119,8 +120,8 @@ public class Node {
 
   CompletableFuture<NodeResponse> executeRequestCommand(NodeRequestCommand nodeCommand) {
     RequestId requestId = nodeCommand.requestId();
-    final CompletableFuture<NodeResponse> resultForRequest =
-        resultsByRequest.computeIfAbsent(requestId, r -> new CompletableFuture<>());
+    final CloseableFuture<NodeResponse> resultForRequest =
+        resultsByRequest.computeIfAbsent(requestId, r -> new CloseableFuture<>());
     try {
       boolean executeMainLogic;
       if (nodeCommand instanceof SkipNode skipNode) {
@@ -484,8 +485,7 @@ public class Node {
     MainLogicInputs mainLogicInputs = getInputsForMainLogic(requestId);
     // Retrieve existing result from cache if result for this set of inputs has already been
     // calculated
-    CompletableFuture<Object> resultFuture =
-        resultsCache.get(mainLogicInputs.nonDependencyInputs());
+    CloseableFuture<Object> resultFuture = resultsCache.get(mainLogicInputs.nonDependencyInputs());
     if (resultFuture == null) {
       resultFuture =
           executeDecoratedMainLogic(
@@ -494,10 +494,8 @@ public class Node {
     }
     resultFuture
         .handle(ValueOrError::valueOrError)
-        .thenAccept(
-            value ->
-                resultForRequest.complete(
-                    new NodeResponse(mainLogicInputs.nonDependencyInputs(), value)));
+        .thenApply(voe -> new NodeResponse(mainLogicInputs.nonDependencyInputs(), voe))
+        .thenAccept(resultForRequest::complete);
     mainLogicExecuted.put(requestId, true);
     flushDecoratorsIfNeeded(dependantChainByRequest.get(requestId));
   }
