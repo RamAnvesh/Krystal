@@ -1,6 +1,6 @@
 package com.flipkart.krystal.vajramexecutor.krystex;
 
-import static com.flipkart.krystal.utils.Futures.linkFutures;
+import static com.flipkart.krystal.futures.Futures.linkFutures;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.flipkart.krystal.config.ConfigProvider;
