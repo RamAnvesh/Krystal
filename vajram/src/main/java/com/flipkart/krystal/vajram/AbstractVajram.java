@@ -5,8 +5,8 @@ import static com.flipkart.krystal.vajram.Vajrams.getVajramIdString;
 
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
-abstract sealed class AbstractVajram<T> implements Vajram<T> permits ComputeVajram, DelayableVajram,
-    IOVajram {
+abstract sealed class AbstractVajram<T> implements Vajram<T>
+    permits ComputeVajram, DelayableVajram, IOVajram {
 
   private @MonotonicNonNull VajramID id;
 

@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.flipkart.krystal.honeycomb.hub.api";
+
+service HoneycombHub{
+  //Returns set of available facets
+  rpc GetGraphInstanceState(GetGraphInstanceStateRequest) returns (GetGraphInstanceStateReply) {}
+  rpc GetAvailableFacets(GetAvailableFacetsRequest) returns (GetAvailableFacetsReply) {}
+}
+
+message GetGraphInstanceStateRequest{
+
+}
+
+message GetGraphInstanceStateReply{
+
+}
+
+message GetAvailableFacetsRequest {
+  string graph_instance_id = 1;
+  string kryon_id = 2;
+}
+
+message GetAvailableFacetsReply{
+
+}

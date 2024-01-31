@@ -1,0 +1,61 @@
+plugins {
+    // Provide convenience executables for trying out the examples.
+    id 'application'
+    id 'com.google.protobuf' version '0.9.4'
+}
+
+description 'A programming model for writing highly concurrent synchronous workflows.'
+
+def protobufVersion = '3.21.12'
+def protocVersion = protobufVersion
+def grpcVersion = '1.61.0' // CURRENT_GRPC_VERSION
+
+dependencies {
+    api project(':krystal-common')
+
+    implementation "io.grpc:grpc-protobuf"
+    implementation "io.grpc:grpc-services"
+    implementation "io.grpc:grpc-stub"
+    implementation "com.google.protobuf:protobuf-java"
+
+    implementation "com.flipkart.grpc-jexpress:core"
+    implementation "com.flipkart.grpc-jexpress:runtime"
+    implementation "com.flipkart.grpc-jexpress:guice"
+
+    implementation 'javax.annotation:javax.annotation-api'
+    implementation 'com.fasterxml.jackson.core:jackson-annotations'
+
+    implementation 'com.google.inject:guice'
+}
+
+configurations.all {
+    resolutionStrategy {
+        force "com.google.protobuf:protobuf-java:${protobufVersion}"
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs 'build/generated/source/proto/main/grpc'
+            srcDirs 'build/generated/source/proto/main/java'
+        }
+    }
+}
+
+protobuf {
+    protoc { artifact = "com.google.protobuf:protoc:${protocVersion}" }
+    plugins {
+        grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}" }
+    }
+    generateProtoTasks {
+        all()*.plugins { grpc {} }
+    }
+}
+
+checkerFramework {
+    extraJavacArgs += [
+            "-AskipDefs=^com\\.flipkart\\.krystal\\.honeycomb\\.hub\\.api\\.",
+    ]
+}
+

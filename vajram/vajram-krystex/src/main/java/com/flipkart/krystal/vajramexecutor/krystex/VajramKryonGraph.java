@@ -546,7 +546,7 @@ public final class VajramKryonGraph implements VajramExecutableGraph {
                   });
               @SuppressWarnings("unchecked")
               Vajram<Object> vajram = (Vajram<Object>) vajramDefinition.getVajram();
-              ImmutableMap<Inputs, CompletableFuture<@Nullable Object>> validResults =
+              ImmutableMap<Inputs, ? extends CompletableFuture<@Nullable Object>> validResults =
                   vajram.execute(ImmutableList.copyOf(validInputs));
 
               return ImmutableMap.<Inputs, CompletableFuture<@Nullable Object>>builder()

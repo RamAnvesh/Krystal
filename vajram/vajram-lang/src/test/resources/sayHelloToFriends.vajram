@@ -4,7 +4,8 @@ string sayHelloToFriends(
     string userId,
     int? numberOfFriends){
 
-  @dep UserInfo userInfo = getUserInfo(userId = userId)
+  @dep UserInfo
+   = getUserInfo(userId = userId)
 
   @dep UserInfo* friendsInfos = getUserInfo(
       userId =*

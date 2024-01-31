@@ -1,4 +1,10 @@
-description 'The default asynchronous orchestator which orchestrates stateful krystal workflows'
+description 'A programming model for writing highly concurrent synchronous workflows.'
+
+dependencies {
+    api project(':krystal-common')
+    api project(':krystex')
+    api project(':honeycomb-hub-client')
+}
 
 publishing {
     publications {
@@ -10,4 +16,3 @@ publishing {
         }
     }
 }
-

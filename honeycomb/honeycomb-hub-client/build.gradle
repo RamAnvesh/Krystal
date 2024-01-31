@@ -1,0 +1,5 @@
+description 'A programming model for writing highly concurrent synchronous workflows.'
+
+dependencies {
+    api project(':krystal-common')
+}
