@@ -38,4 +38,5 @@ include 'vajram-lang'
 project(':vajram-lang').projectDir = file('vajram/vajram-lang')
 
 include 'code-coverage-report'
+include 'demo'
 

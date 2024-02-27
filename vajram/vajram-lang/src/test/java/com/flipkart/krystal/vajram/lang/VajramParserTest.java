@@ -20,6 +20,11 @@ import org.junit.jupiter.api.Test;
 
 public class VajramParserTest {
   @Test
+  void helloWorld() throws Exception {
+    parseFile("helloWorld.vajram");
+  }
+
+  @Test
   void getUserInfo() throws Exception {
     parseFile("getUserInfo.vajram");
   }
@@ -37,6 +42,21 @@ public class VajramParserTest {
   @Test
   void sayHelloToFriendsV2() throws Exception {
     parseFile("sayHelloToFriendsV2.vajram");
+  }
+
+  @Test
+  void getProductDetails() throws Exception {
+    parseFile("getProductDetails.vajram");
+  }
+
+  @Test
+  void isProductAvailable() throws Exception {
+    parseFile("isProductAvailable.vajram");
+  }
+
+  @Test
+  void getAvailableProductDetails() throws Exception {
+    parseFile("getAvailableProductDetails.vajram");
   }
 
   private void parseFile(String name) throws URISyntaxException, IOException {

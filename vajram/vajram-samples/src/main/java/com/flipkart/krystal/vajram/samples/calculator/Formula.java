@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableCollection;
 
 /** a/(p+q) */
 @VajramDef
+@RemoteInvocation
 public abstract class Formula extends ComputeVajram<Integer> {
   static class _Facets {
     @Input int a;
