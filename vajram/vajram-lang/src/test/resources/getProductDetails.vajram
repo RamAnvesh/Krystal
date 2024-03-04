@@ -6,7 +6,7 @@ ProductDetails? getProductDetails(
 
   ~{
     List<String> productIds =
-        #batch.list()
+        #batch.batches()
         .map{_.productId()}
         .toList();
     Map<#batch, ProductDetails>~ productDetails =

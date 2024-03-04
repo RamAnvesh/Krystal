@@ -1,3 +1,5 @@
+package com.flipkart.krystal.vajram.lang.samples;
+
 void errabilityDemo() {
 
   // this dependency might fail

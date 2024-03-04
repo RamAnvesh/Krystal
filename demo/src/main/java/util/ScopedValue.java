@@ -5,12 +5,10 @@ import org.checkerframework.checker.units.qual.C;
 
 public class ScopedValue<T> {
 
-  static <T> ScopedValue<T> newInstance() {
+  static <T> ScopedValue<T> newInstance(T t) {
     //noinspection unchecked
-    return new ScopedValue<>();
+    return new ScopedValue<>(t);
   }
-
-  private ScopedValue() {}
 
   private ScopedValue(T t) {
     this.t = t;

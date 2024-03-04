@@ -70,6 +70,10 @@ public record AvailableProductDetailsFetcher(
         exception = e;
       }
     }
-    throw exception;
+    if (exception != null) {
+      throw exception;
+    } else {
+      throw new AssertionError();
+    }
   }
 }

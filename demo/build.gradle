@@ -1,17 +1,12 @@
 plugins {
-    id 'java'
-}
-
-group = 'com.flipkart.krystal'
-version = 'unspecified'
-
-repositories {
-    mavenCentral()
+    id 'com.flipkart.krystal' version "${krystal_version}"
 }
 
 dependencies {
-    testImplementation platform('org.junit:junit-bom:5.9.1')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
+    implementation project(':krystal-common')
+    implementation project(':vajram')
+
+    annotationProcessor 'com.flipkart.krystal:krystal-plugin'
 }
 
 test {

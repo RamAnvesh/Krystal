@@ -16,7 +16,7 @@ imports_decl: IMPORT qualifiedName ('.' '*')? ';';
 
 qualifiedName: ID ('.' ID)*;
 
-dependency: annotation* type FANOUT? ID EQ ID '(' (dep_input_resolver SEMI)* dep_input_resolver? ')' (ERRABLE func_call)? annotated_logic_block* SEMI ;
+dependency: annotation* type FANOUT? ID EQ FANOUT? ID '(' (dep_input_resolver SEMI)* dep_input_resolver? ')' (ERRABLE func_call)? annotated_logic_block* SEMI ;
 
 annotated_delegatable_logic_block: annotation* completion_time logic_block;
 

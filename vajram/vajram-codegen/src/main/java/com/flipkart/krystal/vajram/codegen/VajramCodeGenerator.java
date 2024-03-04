@@ -86,7 +86,6 @@ import com.flipkart.krystal.vajram.facets.InputDef;
 import com.flipkart.krystal.vajram.facets.InputSource;
 import com.flipkart.krystal.vajram.facets.MultiExecute;
 import com.flipkart.krystal.vajram.facets.SingleExecute;
-import com.flipkart.krystal.vajram.facets.Using;
 import com.flipkart.krystal.vajram.facets.VajramDepFanoutTypeSpec;
 import com.flipkart.krystal.vajram.facets.VajramDepSingleTypeSpec;
 import com.flipkart.krystal.vajram.facets.VajramFacetDefinition;
@@ -288,11 +287,9 @@ public class VajramCodeGenerator {
     return Optional.ofNullable(parsedVajramData).orElseGet(this::initParsedVajramData);
   }
 
-  private static ImmutableSet<String> getResolverSources(ExecutableElement resolve) {
+  private ImmutableSet<String> getResolverSources(ExecutableElement resolve) {
     return resolve.getParameters().stream()
-        .filter(parameter -> parameter.getAnnotationsByType(Using.class).length > 0)
-        .map(parameter -> parameter.getAnnotation(Using.class))
-        .map(Using::value)
+        .map(parameter -> util.inferFacetName(parameter))
         .collect(toImmutableSet());
   }
 
@@ -648,8 +645,7 @@ public class VajramCodeGenerator {
                       .getParameters()
                       .forEach(
                           parameter -> {
-                            String bindParamName =
-                                checkNotNull(parameter.getAnnotation(Using.class)).value();
+                            String bindParamName = util.inferFacetName(parameter);
                             if (!fanout.get()
                                 && depFanoutMap.containsKey(
                                     bindParamName)) { // if fanout is already set skip resetting it.
@@ -717,14 +713,7 @@ public class VajramCodeGenerator {
         .getParameters()
         .forEach(
             parameter -> {
-              String usingInputName =
-                  checkNotNull(
-                          parameter.getAnnotation(Using.class),
-                          "Resolver method params must have 'Using' annotation. Vajram: %s, method %s, param: %s",
-                          vajramName,
-                          method.getSimpleName(),
-                          parameter.getSimpleName())
-                      .value();
+              String usingInputName = util.inferFacetName(parameter);
               // check if the bind param has multiple resolvers
               if (facetModels.get(usingInputName) instanceof DependencyModel) {
                 generateDependencyResolutions(
