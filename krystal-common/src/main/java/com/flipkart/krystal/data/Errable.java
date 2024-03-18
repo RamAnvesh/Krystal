@@ -15,41 +15,39 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Example states:
  *
  * <ul>
- *   {@link #value()} is empty and {@link #error()} is empty - represents a null value.
- * </ul>
- *
- * <ul>
- *   {@link #value()} is empty and {@link #error()} is not empty - value could not be computed
- *   because of the given error.
- * </ul>
- *
- * <ul>
- *   {@link #value()} is not empty and {@link #error()} is empty - successfully computed the given
- *   value
- * </ul>
- *
- * <ul>
- *   {@link #value()} is not empty and {@link #error()} is not empty - this scenario is impossible.
+ *   <li>{@link #value()} is empty and {@link #error()} is empty - represents a null value.
+ *   <li>{@link #value()} is empty and {@link #error()} is not empty - value could not be computed
+ *       because of the given error.
+ *   <li>{@link #value()} is not empty and {@link #error()} is empty - successfully computed the
+ *       given value
+ *   <li>{@link #value()} is not empty and {@link #error()} is not empty - this scenario is
+ *       impossible.
  * </ul>
  */
-public record ValueOrError<T>(Optional<T> value, Optional<Throwable> error)
-    implements InputValue<T> {
+public record Errable<T>(Optional<T> value, Optional<Throwable> error) implements FacetValue<T> {
 
-  private static final ValueOrError<?> EMPTY =
-      new ValueOrError<>(Optional.empty(), Optional.empty());
+  private static final Errable<?> EMPTY = new Errable<>(Optional.empty(), Optional.empty());
 
-  public ValueOrError {
+  public Errable {
     if ((value.isPresent() && error.isPresent())) {
       throw new IllegalArgumentException("Both of 'value' and 'error' cannot be present together");
     }
   }
 
-  public static <T> ValueOrError<T> empty() {
+  public static <T> Errable<T> empty() {
     //noinspection unchecked
-    return (ValueOrError<T>) EMPTY;
+    return (Errable<T>) EMPTY;
   }
 
-  public static <T> ValueOrError<T> valueOrError(Callable<T> valueProvider) {
+  public static <T> Errable<T> withValue(@Nullable T t) {
+    return errableFrom(t, null);
+  }
+
+  public static <T> Errable<T> withError(Throwable t) {
+    return errableFrom(null, t);
+  }
+
+  public static <T> Errable<T> errableFrom(Callable<T> valueProvider) {
     try {
       return withValue(valueProvider.call());
     } catch (Throwable e) {
@@ -57,24 +55,15 @@ public record ValueOrError<T>(Optional<T> value, Optional<Throwable> error)
     }
   }
 
-  public static <S, T> Function<S, ValueOrError<T>> valueOrError(Function<S, T> valueComputer) {
-    return s -> valueOrError(() -> valueComputer.apply(s));
+  public static <S, T> Function<S, Errable<T>> errableFrom(Function<S, T> valueComputer) {
+    return s -> errableFrom(() -> valueComputer.apply(s));
   }
 
-  public static <T> ValueOrError<T> withValue(@Nullable T t) {
-    return valueOrError(t, null);
-  }
-
-  public static <T> ValueOrError<T> withError(Throwable t) {
-    return valueOrError(null, t);
-  }
-
-  public static <T> ValueOrError<T> valueOrError(
-      @Nullable Object t, @Nullable Throwable throwable) {
+  public static <T> Errable<T> errableFrom(@Nullable Object value, @Nullable Throwable error) {
     //noinspection unchecked,rawtypes
-    return new ValueOrError<T>(
-        (t instanceof Optional o) ? o : (Optional<T>) Optional.ofNullable(t),
-        Optional.ofNullable(throwable));
+    return new Errable<T>(
+        (value instanceof Optional o) ? o : (Optional<T>) Optional.ofNullable(value),
+        Optional.ofNullable(error));
   }
 
   /**

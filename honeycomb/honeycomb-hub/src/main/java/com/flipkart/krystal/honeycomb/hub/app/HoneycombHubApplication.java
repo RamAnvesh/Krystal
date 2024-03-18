@@ -14,7 +14,7 @@ public class HoneycombHubApplication extends Application<HoneycombHubConfig, Map
 
   @Override
   public String getName() {
-    return "The Honeycomb-Hub service: Stores and serves the state of asynchnous Krystal graphs";
+    return "The Honeycomb-Hub service: Stores and serves the state of asynchronous Krystal graphs";
   }
 
   @Override

@@ -1,19 +1,22 @@
 package com.flipkart.krystal.vajram.facets;
 
+import com.flipkart.krystal.config.Tag;
 import com.flipkart.krystal.datatypes.DataType;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import lombok.Builder;
 
 @Builder
-public record Input<T>(
+public record InputDef<T>(
     String name,
     DataType<?> type,
     boolean isMandatory,
     T defaultValue,
     String documentation,
     boolean needsModulation,
-    ImmutableSet<InputSource> sources)
+    ImmutableSet<InputSource> sources,
+    ImmutableMap<Object, Tag> tags)
     implements VajramFacetDefinition {
 
   private static final ImmutableSet<InputSource> DEFAULT_INPUT_SOURCES =
@@ -30,16 +33,16 @@ public record Input<T>(
     return sources;
   }
 
-  public static class InputBuilder<T> {
+  public static class InputDefBuilder<T> {
 
-    public InputBuilder<T> sources(InputSource... inputSources) {
+    public InputDefBuilder<T> sources(InputSource... inputSources) {
       if (inputSources != null) {
         this.sources = ImmutableSet.copyOf(inputSources);
       }
       return this;
     }
 
-    public InputBuilder<T> sources(Set<InputSource> inputSources) {
+    public InputDefBuilder<T> sources(Set<InputSource> inputSources) {
       if (inputSources != null) {
         this.sources = ImmutableSet.copyOf(inputSources);
       }

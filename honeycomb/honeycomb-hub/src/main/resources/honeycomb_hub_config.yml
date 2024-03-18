@@ -1,6 +1,5 @@
 Grpc:
   server.port: 50051
-  server.executorThreads : 4
 
 Dashboard:
   service.port: 9999

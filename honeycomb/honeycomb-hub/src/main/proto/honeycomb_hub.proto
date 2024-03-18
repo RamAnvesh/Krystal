@@ -1,20 +1,63 @@
 syntax = "proto3";
 
+import "google/protobuf/any.proto";
+
 option java_multiple_files = true;
 option java_package = "com.flipkart.krystal.honeycomb.hub.api";
 
 service HoneycombHub{
-  //Returns set of available facets
+  // Returns the complete state of the graph instance
   rpc GetGraphInstanceState(GetGraphInstanceStateRequest) returns (GetGraphInstanceStateReply) {}
+  // Returns set of available facets
   rpc GetAvailableFacets(GetAvailableFacetsRequest) returns (GetAvailableFacetsReply) {}
 }
 
 message GetGraphInstanceStateRequest{
-
+  string graphInstanceId = 1;
 }
 
 message GetGraphInstanceStateReply{
+  repeated KryonExecInfo kryonExecInfos = 1;
+  string graphInstanceId = 2;
+}
 
+message KryonExecInfo {
+  string kryonId = 1;
+  KryonState kryonState = 2;
+  repeated FacetInfo facetInfos = 3;
+  enum KryonState {
+    UNKNOWN = 0;
+    NOT_STARTED = 1;
+    EXECUTING = 2;
+    COMPLETED = 3;
+  }
+}
+
+message FacetInfo{
+  string facetName = 1;
+  FacetState facetState = 2;
+  FacetValueRef facetValue = 3;
+  enum FacetState {
+    UNKNOWN = 0;
+    NOT_STARTED = 1;
+    EXECUTING = 2;
+    COMPLETED = 3;
+  }
+}
+
+message FacetValueRef {
+  ValueRef valueRef = 1;
+}
+
+message ValueRef {
+  ValueRefType refType = 1;
+  google.protobuf.Any value = 2;
+
+  enum ValueRefType {
+    UNKNOWN = 0;
+    INLINE = 1;
+    DEREF = 2;
+  }
 }
 
 message GetAvailableFacetsRequest {

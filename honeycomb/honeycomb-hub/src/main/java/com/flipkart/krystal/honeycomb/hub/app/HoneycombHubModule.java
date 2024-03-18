@@ -1,10 +1,19 @@
 package com.flipkart.krystal.honeycomb.hub.app;
 
-import com.google.inject.Binder;
-import com.google.inject.Module;
+import com.google.inject.AbstractModule;
+import com.google.inject.name.Names;
+import io.grpc.BindableService;
+import io.grpc.protobuf.services.ProtoReflectionService;
 
-public class HoneycombHubModule implements Module {
+public class HoneycombHubModule extends AbstractModule {
 
   @Override
-  public void configure(Binder binder) {}
+  public void configure() {
+    bind(BindableService.class)
+        .annotatedWith(Names.named("HoneycombHubService"))
+        .to(HoneycombHubService.class);
+    bind(BindableService.class)
+        .annotatedWith(Names.named("ProtoReflectionService"))
+        .toInstance(ProtoReflectionService.newInstance());
+  }
 }

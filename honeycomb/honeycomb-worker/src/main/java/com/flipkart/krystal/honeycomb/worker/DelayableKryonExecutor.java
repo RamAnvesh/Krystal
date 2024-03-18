@@ -1,6 +1,6 @@
 package com.flipkart.krystal.honeycomb.worker;
 
-import com.flipkart.krystal.data.Inputs;
+import com.flipkart.krystal.data.Facets;
 import com.flipkart.krystal.futures.DelayableFuture;
 import com.flipkart.krystal.krystex.KrystalExecutor;
 import com.flipkart.krystal.krystex.kryon.KryonExecutionConfig;
@@ -25,7 +25,7 @@ public final class DelayableKryonExecutor implements KrystalExecutor {
    */
   @Override
   public <T> CompletableFuture<@Nullable T> executeKryon(
-      KryonId kryonId, Inputs inputs, KryonExecutionConfig executionConfig) {
+      KryonId kryonId, Facets inputs, KryonExecutionConfig executionConfig) {
     throw new UnsupportedOperationException();
   }
 

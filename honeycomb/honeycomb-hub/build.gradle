@@ -6,9 +6,9 @@ plugins {
 
 description 'A programming model for writing highly concurrent synchronous workflows.'
 
-def protobufVersion = '3.21.12'
+def protobufVersion = '3.25.1'
 def protocVersion = protobufVersion
-def grpcVersion = '1.61.0' // CURRENT_GRPC_VERSION
+def grpcVersion = '1.61.1'
 
 dependencies {
     api project(':krystal-common')
@@ -26,12 +26,6 @@ dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-annotations'
 
     implementation 'com.google.inject:guice'
-}
-
-configurations.all {
-    resolutionStrategy {
-        force "com.google.protobuf:protobuf-java:${protobufVersion}"
-    }
 }
 
 sourceSets {

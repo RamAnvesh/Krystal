@@ -8,15 +8,13 @@ import com.flipkart.krystal.krystex.logicdecoration.LogicExecutionContext;
 import com.flipkart.krystal.krystex.logicdecoration.OutputLogicDecorator;
 import com.flipkart.krystal.krystex.logicdecoration.OutputLogicDecoratorConfig.DecoratorContext;
 import com.flipkart.krystal.vajram.Vajram;
-import com.flipkart.krystal.vajram.facets.InputValuesAdaptor;
+import com.flipkart.krystal.vajram.facets.FacetValuesAdaptor;
+import com.flipkart.krystal.vajram.modulation.FacetsConverter;
 import com.flipkart.krystal.vajram.modulation.InputModulator;
-import com.flipkart.krystal.vajram.modulation.InputsConverter;
-import com.flipkart.krystal.vajram.tags.AnnotationTag;
-import com.flipkart.krystal.vajram.tags.NamedValueTag;
+import com.flipkart.krystal.vajram.tags.AnnotationTags;
 import com.flipkart.krystal.vajram.tags.VajramTags;
 import com.google.common.collect.ImmutableSet;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -39,7 +37,7 @@ public record InputModulatorConfig(
    *     unique {@link InputModulationDecorator} instance.
    */
   public static InputModulatorConfig simple(
-      Supplier<InputModulator<InputValuesAdaptor, InputValuesAdaptor>> inputModulatorSupplier) {
+      Supplier<InputModulator<FacetValuesAdaptor, FacetValuesAdaptor>> inputModulatorSupplier) {
     return new InputModulatorConfig(
         logicExecutionContext ->
             generateInstanceId(
@@ -50,7 +48,7 @@ public record InputModulatorConfig(
         modulatorContext -> {
           @SuppressWarnings("unchecked")
           var inputsConvertor =
-              (InputsConverter<InputValuesAdaptor, InputValuesAdaptor>)
+              (FacetsConverter<FacetValuesAdaptor, FacetValuesAdaptor>)
                   modulatorContext.vajram().getInputsConvertor();
           return new InputModulationDecorator<>(
               modulatorContext.decoratorContext().instanceId(),
@@ -66,7 +64,7 @@ public record InputModulatorConfig(
   }
 
   public static InputModulatorConfig sharedModulator(
-      Supplier<InputModulator<InputValuesAdaptor, InputValuesAdaptor>> inputModulatorSupplier,
+      Supplier<InputModulator<FacetValuesAdaptor, FacetValuesAdaptor>> inputModulatorSupplier,
       String instanceId,
       DependantChain... dependantChains) {
     return sharedModulator(
@@ -74,7 +72,7 @@ public record InputModulatorConfig(
   }
 
   public static InputModulatorConfig sharedModulator(
-      Supplier<InputModulator<InputValuesAdaptor, InputValuesAdaptor>> inputModulatorSupplier,
+      Supplier<InputModulator<FacetValuesAdaptor, FacetValuesAdaptor>> inputModulatorSupplier,
       String instanceId,
       ImmutableSet<DependantChain> dependantChains) {
     return new InputModulatorConfig(
@@ -83,7 +81,7 @@ public record InputModulatorConfig(
         modulatorContext -> {
           @SuppressWarnings("unchecked")
           var inputsConvertor =
-              (InputsConverter<InputValuesAdaptor, InputValuesAdaptor>)
+              (FacetsConverter<FacetValuesAdaptor, FacetValuesAdaptor>)
                   modulatorContext.vajram().getInputsConvertor();
           return new InputModulationDecorator<>(
               instanceId, inputModulatorSupplier.get(), inputsConvertor, dependantChains::contains);
@@ -101,26 +99,18 @@ public record InputModulatorConfig(
     } else if (dependantChain instanceof DefaultDependantChain defaultDependantChain) {
       if (defaultDependantChain.dependantChain() instanceof DependantChainStart) {
         String vajramId =
-            Optional.ofNullable(
+            AnnotationTags.getNamedValueTag(
+                    VajramTags.VAJRAM_ID,
                     kryonDefinitionRegistry
                         .get(defaultDependantChain.kryonId())
                         .getOutputLogicDefinition()
-                        .logicTags()
-                        .get(VajramTags.VAJRAM_ID))
-                .map(
-                    tag -> {
-                      if (tag instanceof AnnotationTag<?> anno) {
-                        if (anno.annotation() instanceof NamedValueTag namedValueTag) {
-                          return namedValueTag.value();
-                        }
-                      }
-                      return null;
-                    })
+                        .logicTags())
                 .orElseThrow(
                     () ->
                         new NoSuchElementException(
                             "Could not find tag %s for kryon %s"
-                                .formatted(VajramTags.VAJRAM_ID, defaultDependantChain.kryonId())));
+                                .formatted(VajramTags.VAJRAM_ID, defaultDependantChain.kryonId())))
+                .value();
         return generateInstanceId(defaultDependantChain.dependantChain(), kryonDefinitionRegistry)
             .append('>')
             .append(vajramId)
