@@ -73,9 +73,10 @@ public class VajramImplGenProcessor extends AbstractProcessor {
       } catch (Exception e) {
         StringWriter exception = new StringWriter();
         e.printStackTrace(new PrintWriter(exception));
-        util.note(
-            "Error while generating file for class %s. Ignoring the error as it should be skipped in subsequent runs. Exception: %s"
-                .formatted(className, exception));
+        util.error(
+            "Error while generating file for class %s. Exception: %s"
+                .formatted(className, exception),
+            vajramClass);
       }
     }
     return true;
