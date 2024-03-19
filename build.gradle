@@ -7,6 +7,9 @@ ext {
     clojarsusername = project.properties['clojarsusername'] ?: ""
     clojarspassword = project.properties['clojarspassword'] ?: ""
     krystal_version = '6.0.5-SNAPSHOT'
+    protobufVersion = '3.25.1'
+    protocVersion = protobufVersion
+    grpcVersion = '1.61.1'
 }
 
 subprojects {
@@ -51,7 +54,8 @@ subprojects {
         api platform('org.assertj:assertj-bom:3.25.2')
         api platform('io.github.resilience4j:resilience4j-bom:2.2.0')
         api platform('com.google.inject:guice-bom:6.0.0')
-        implementation platform('io.grpc:grpc-bom:1.61.0')
+        implementation platform("com.google.protobuf:protobuf-bom:${protobufVersion}")
+        implementation platform("io.grpc:grpc-bom:${grpcVersion}")
         constraints {
             implementation 'com.google.guava:guava:33.0.0-jre'
             implementation 'org.checkerframework:checker-qual:3.42.0'

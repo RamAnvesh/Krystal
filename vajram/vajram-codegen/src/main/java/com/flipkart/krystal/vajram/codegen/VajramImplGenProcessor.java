@@ -9,6 +9,8 @@ import static java.util.stream.Collectors.joining;
 import com.flipkart.krystal.vajram.codegen.models.CodegenPhase;
 import com.flipkart.krystal.vajram.codegen.models.VajramInfo;
 import com.google.auto.service.AutoService;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -69,9 +71,11 @@ public class VajramImplGenProcessor extends AbstractProcessor {
       try {
         util.generateSourceFile(className, vajramCodeGenerator.codeGenVajramImpl(), vajramClass);
       } catch (Exception e) {
+        StringWriter exception = new StringWriter();
+        e.printStackTrace(new PrintWriter(exception));
         util.note(
             "Error while generating file for class %s. Ignoring the error as it should be skipped in subsequent runs. Exception: %s"
-                .formatted(className, e));
+                .formatted(className, exception));
       }
     }
     return true;

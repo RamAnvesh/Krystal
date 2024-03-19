@@ -45,5 +45,8 @@ project(':honeycomb-hub').projectDir = file('honeycomb/honeycomb-hub')
 include 'honeycomb-worker'
 project(':honeycomb-worker').projectDir = file('honeycomb/honeycomb-worker')
 
+include 'honeycomb-samples'
+project(':honeycomb-samples').projectDir = file('honeycomb/honeycomb-samples')
+
 include 'code-coverage-report'
 

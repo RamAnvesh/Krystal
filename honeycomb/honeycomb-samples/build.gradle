@@ -1,23 +1,29 @@
 plugins {
     id 'com.google.protobuf' version '0.9.4'
+    id 'com.flipkart.krystal' version "${krystal_version}"
 }
 
-dependencies {
-    api project(':krystal-common')
+description 'Examples of krystal workflows executed by honeycomb'
 
-    implementation 'io.grpc:grpc-protobuf'
-    implementation 'io.grpc:grpc-services'
+dependencies {
+    implementation project(':krystal-common')
+    implementation project(':vajram')
+    protobuf files('../honeycomb-hub/src/main/proto/api/')
+
     implementation 'io.grpc:grpc-stub'
+    implementation 'io.grpc:grpc-protobuf'
     implementation 'com.google.protobuf:protobuf-java'
 
-    implementation 'com.flipkart.grpc-jexpress:core'
-    implementation 'com.flipkart.grpc-jexpress:runtime'
-    implementation 'com.flipkart.grpc-jexpress:guice'
-
     implementation 'javax.annotation:javax.annotation-api'
-    implementation 'com.fasterxml.jackson.core:jackson-annotations'
+    annotationProcessor 'com.flipkart.krystal:krystal-plugin'
 
-    implementation 'com.google.inject:guice'
+
+    implementation 'jakarta.inject:jakarta.inject-api'
+}
+
+
+codeGenVajramModels {
+    dependsOn generateProto
 }
 
 sourceSets {
@@ -44,17 +50,3 @@ checkerFramework {
             "-AskipDefs=^com\\.flipkart\\.krystal\\.honeycomb\\.hub\\.api\\.",
     ]
 }
-
-
-
-publishing {
-    publications {
-        protoJar(MavenPublication) {
-            groupId = 'com.flipkart.krystal'
-            artifactId = project.name + '-proto'
-            version = project.krystal_version
-            from components.java
-        }
-    }
-}
-

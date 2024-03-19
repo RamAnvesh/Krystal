@@ -46,7 +46,7 @@ class VajramPlugin implements Plugin<Project> {
         project.tasks.register('codeGenVajramModels', JavaCompile) {
             //Compile the generatedCode
             group = 'krystal'
-            source mainSrcDir
+            source project.tasks.compileJava.source
             classpath = project.configurations.compileClasspath
             // This is a 'proc:only' compile step. Which means, no .class files are generated. This means the destinationDirectory property
             // is not used by this step.
