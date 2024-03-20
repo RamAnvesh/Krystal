@@ -6,6 +6,7 @@ import static java.util.stream.Collectors.toMap;
 
 import com.flipkart.krystal.config.Tag;
 import com.flipkart.krystal.vajram.ComputeVajram;
+import com.flipkart.krystal.vajram.DelayableVajram;
 import com.flipkart.krystal.vajram.IOVajram;
 import com.flipkart.krystal.vajram.Output;
 import com.flipkart.krystal.vajram.Vajram;
@@ -151,9 +152,11 @@ public final class VajramDefinition {
           AnnotationTag<NamedValueTag> vajramTypeTag =
               AnnotationTags.newNamedTag(
                   VajramTags.VAJRAM_TYPE,
-                  vajram instanceof IOVajram<?>
-                      ? VajramTypes.IO_VAJRAM
-                      : VajramTypes.COMPUTE_VAJRAM);
+                  vajram instanceof DelayableVajram<?>
+                      ? VajramTypes.DELAYABLE_VAJRAM
+                      : vajram instanceof IOVajram<?>
+                          ? VajramTypes.IO_VAJRAM
+                          : VajramTypes.COMPUTE_VAJRAM);
           collect.put(vajramTypeTag.tagKey(), vajramTypeTag);
         });
     AnnotationTag<NamedValueTag> vajramIdTag =

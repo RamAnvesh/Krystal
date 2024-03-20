@@ -72,7 +72,7 @@ import lombok.Getter;
 
 public class Utils {
 
-  private static final boolean DEBUG = true;
+  private static final boolean DEBUG = false;
 
   public static final String DOT = ".";
   public static final String COMMA = ",";

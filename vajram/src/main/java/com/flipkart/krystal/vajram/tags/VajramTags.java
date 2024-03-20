@@ -7,8 +7,9 @@ public final class VajramTags {
   public static final String VAJRAM_TYPE = "vajram_type";
 
   public static final class VajramTypes {
-    public static final String IO_VAJRAM = "io_vajram";
     public static final String COMPUTE_VAJRAM = "compute_vajram";
+    public static final String IO_VAJRAM = "io_vajram";
+    public static final String DELAYABLE_VAJRAM = "delayable_vajram";
 
     private VajramTypes() {}
   }
