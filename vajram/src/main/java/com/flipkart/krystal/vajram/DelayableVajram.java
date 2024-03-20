@@ -1,12 +1,3 @@
 package com.flipkart.krystal.vajram;
 
-import com.flipkart.krystal.data.Facets;
-import com.flipkart.krystal.futures.DelayableFuture;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import org.checkerframework.checker.nullness.qual.Nullable;
-
-public abstract non-sealed class DelayableVajram<T> extends AbstractVajram<T> {
-  public abstract ImmutableMap<Facets, DelayableFuture<@Nullable T, ?>> execute(
-      ImmutableList<Facets> inputs);
-}
+public abstract class DelayableVajram<T> extends IOVajram<T> {}

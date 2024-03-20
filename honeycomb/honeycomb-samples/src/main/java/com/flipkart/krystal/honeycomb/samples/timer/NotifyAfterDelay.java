@@ -3,7 +3,7 @@ package com.flipkart.krystal.honeycomb.samples.timer;
 import com.flipkart.krystal.futures.DelayableFuture;
 import com.flipkart.krystal.honeycomb.hub.api.HoneycombHubGrpc.HoneycombHubFutureStub;
 import com.flipkart.krystal.honeycomb.samples.timer.NotifyAfterDelayFacetUtil.NotifyAfterDelayFacets;
-import com.flipkart.krystal.vajram.IOVajram;
+import com.flipkart.krystal.vajram.DelayableVajram;
 import com.flipkart.krystal.vajram.Input;
 import com.flipkart.krystal.vajram.Output;
 import com.flipkart.krystal.vajram.VajramDef;
@@ -13,7 +13,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 
 @VajramDef
-public abstract class NotifyAfterDelay extends IOVajram<Boolean> {
+public abstract class NotifyAfterDelay extends DelayableVajram<Boolean> {
   @SuppressWarnings("initialization.field.uninitialized")
   static class _Facets {
     @Input Period timePeriod;
