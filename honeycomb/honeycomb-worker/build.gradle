@@ -3,7 +3,6 @@ description 'A programming model for writing highly concurrent synchronous workf
 dependencies {
     api project(':krystal-common')
     api project(':krystex')
-    api project(':honeycomb-hub-client')
 }
 
 publishing {

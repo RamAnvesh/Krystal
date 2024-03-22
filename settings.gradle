@@ -36,9 +36,6 @@ project(':vajram-krystex').projectDir = file('vajram/vajram-krystex')
 include 'vajram-lang'
 project(':vajram-lang').projectDir = file('vajram/vajram-lang')
 
-include 'honeycomb-hub-client'
-project(':honeycomb-hub-client').projectDir = file('honeycomb/honeycomb-hub-client')
-
 include 'honeycomb-hub'
 project(':honeycomb-hub').projectDir = file('honeycomb/honeycomb-hub')
 
