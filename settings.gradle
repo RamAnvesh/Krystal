@@ -39,8 +39,8 @@ project(':vajram-lang').projectDir = file('vajram/vajram-lang')
 include 'honeycomb-hub'
 project(':honeycomb-hub').projectDir = file('honeycomb/honeycomb-hub')
 
-include 'honeycomb-worker'
-project(':honeycomb-worker').projectDir = file('honeycomb/honeycomb-worker')
+include 'honeycomb-exec'
+project(':honeycomb-exec').projectDir = file('honeycomb/honeycomb-exec')
 
 include 'honeycomb-samples'
 project(':honeycomb-samples').projectDir = file('honeycomb/honeycomb-samples')
