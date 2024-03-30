@@ -7,7 +7,7 @@ description 'Examples of krystal workflows executed by honeycomb'
 
 dependencies {
     implementation project(':krystal-common')
-    implementation project(':vajram')
+    implementation project(':vajram-java-sdk')
     protobuf files('../honeycomb-hub/src/main/proto/api/')
 
     implementation 'io.grpc:grpc-stub'

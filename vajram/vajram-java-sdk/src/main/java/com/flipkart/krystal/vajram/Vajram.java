@@ -47,8 +47,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   <li>Soon: ({@link IOVajram}s) These are vajrams whose output logics delegate the output
  *       computation outside the current thread, and expect the final result to be available soon
  *       (within a few minutes)
- *   <li>Later:({@link DelayableVajram}s) (To be introduced in the future) These are vajrams whose output
- *       logics delegate computation to a longrunning process which is not expected to finish
+ *   <li>Later:({@link DelayableVajram}s) (To be introduced in the future) These are vajrams whose
+ *       output logics delegate computation to a longrunning process which is not expected to finish
  *       anytime soon - i.e it might take hours, days or maybe even years for that long running
  *       process to complete.
  * </ul>

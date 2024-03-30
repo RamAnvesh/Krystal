@@ -37,8 +37,8 @@ On the other hand let us say you have a piece of business logic which does not m
    3. Decide **Input Data Type**: the data types of these inputs must be **deeply immutable** to avoid data races - this is important since the execution is concurrent. The order of execution of various vajrams might vary for every execution based on IO latencies and availability. This means data races can lead to non-determinacy and thus unpredictable results.
    4. Decide **Input sources**: What is the right source of each input? Should it be provided by the client? or the runtime environment? or both?
       1. `@Input`: These are inputs which can only be provided by the clients of this vajram
-      2. `@javax.inject.Inject`: These are inputs which can only be provided by the runtime via injection(simlar to the [dependency injection](https://en.wikipedia.org/wiki/Dependency_injection) design pattern)
-      3. `@Input @javax.inject.Inject`: There are inputs which can be provided either by clients. But if clients provide a `null` value, then the runtime provided value is used.
+      2. `@jakarta.inject.Inject`: These are inputs which can only be provided by the runtime via injection(simlar to the [dependency injection](https://en.wikipedia.org/wiki/Dependency_injection) design pattern)
+      3. `@Input @jakarta.inject.Inject`: There are inputs which can be provided either by clients. But if clients provide a `null` value, then the runtime provided value is used.
    5. Decide **Optionality**: Inputs may be mandatory or optional. Optional inputs are marked using the `java.util.Optional` wrapper. 
       1. In a new vajram, care must be taken when marking an input as Optional. Once an input is marked Optional, it can not be changed to mandatory without breaking clients. In a future version of the platform, Krystal might fail build if this is done.
       2. Similarly, in an existing vajram care must be taken when marking a new input as mandatory - since this will break clients. In a future version of Krystal, this may be disallowed by breaking build.
