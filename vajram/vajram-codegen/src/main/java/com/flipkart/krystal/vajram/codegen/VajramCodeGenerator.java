@@ -17,7 +17,6 @@ import static com.flipkart.krystal.vajram.codegen.Constants.IM_MAP;
 import static com.flipkart.krystal.vajram.codegen.Constants.INPUTS;
 import static com.flipkart.krystal.vajram.codegen.Constants.INPUTS_LIST;
 import static com.flipkart.krystal.vajram.codegen.Constants.INPUT_BATCHING;
-import static com.flipkart.krystal.vajram.codegen.Constants.INPUT_BATCHING_CODE_BLOCK;
 import static com.flipkart.krystal.vajram.codegen.Constants.INPUT_BATCHING_FUTURE_CODE_BLOCK;
 import static com.flipkart.krystal.vajram.codegen.Constants.INPUT_SRC;
 import static com.flipkart.krystal.vajram.codegen.Constants.LINK_HASH_MAP;
@@ -25,7 +24,7 @@ import static com.flipkart.krystal.vajram.codegen.Constants.LIST;
 import static com.flipkart.krystal.vajram.codegen.Constants.MAP;
 import static com.flipkart.krystal.vajram.codegen.Constants.METHOD_EXECUTE;
 import static com.flipkart.krystal.vajram.codegen.Constants.METHOD_EXECUTE_COMPUTE;
-import static com.flipkart.krystal.vajram.codegen.Constants.METHOD_GET_INPUTS_CONVERTOR;
+import static com.flipkart.krystal.vajram.codegen.Constants.METHOD_GET_FACETS_CONVERTOR;
 import static com.flipkart.krystal.vajram.codegen.Constants.METHOD_RESOLVE_INPUT_OF_DEPENDENCY;
 import static com.flipkart.krystal.vajram.codegen.Constants.MOD_INPUT;
 import static com.flipkart.krystal.vajram.codegen.Constants.OPTIONAL;
@@ -43,14 +42,12 @@ import static com.flipkart.krystal.vajram.codegen.Utils.COMMA;
 import static com.flipkart.krystal.vajram.codegen.Utils.CONVERTER;
 import static com.flipkart.krystal.vajram.codegen.Utils.DOT;
 import static com.flipkart.krystal.vajram.codegen.Utils.getAllFacetsClassname;
-import static com.flipkart.krystal.vajram.codegen.Utils.getBatchedInputsClassname;
+import static com.flipkart.krystal.vajram.codegen.Utils.getBatchedFacetsClassname;
 import static com.flipkart.krystal.vajram.codegen.Utils.getCommonFacetsClassname;
 import static com.flipkart.krystal.vajram.codegen.Utils.getFacetUtilClassName;
 import static com.flipkart.krystal.vajram.codegen.Utils.getTypeParameters;
 import static com.flipkart.krystal.vajram.codegen.Utils.getVajramImplClassName;
 import static com.flipkart.krystal.vajram.codegen.models.ParsedVajramData.fromVajram;
-import static com.google.common.base.CaseFormat.LOWER_CAMEL;
-import static com.google.common.base.CaseFormat.LOWER_UNDERSCORE;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
@@ -63,7 +60,6 @@ import static javax.lang.model.element.Modifier.PUBLIC;
 import static javax.lang.model.element.Modifier.STATIC;
 
 import com.flipkart.krystal.data.Errable;
-import com.flipkart.krystal.data.FacetValue;
 import com.flipkart.krystal.data.Facets;
 import com.flipkart.krystal.datatypes.DataType;
 import com.flipkart.krystal.datatypes.JavaType;
@@ -84,6 +80,7 @@ import com.flipkart.krystal.vajram.codegen.models.VajramInfoLite;
 import com.flipkart.krystal.vajram.exception.VajramValidationException;
 import com.flipkart.krystal.vajram.facets.DependencyCommand;
 import com.flipkart.krystal.vajram.facets.DependencyDef;
+import com.flipkart.krystal.vajram.facets.FacetContainer;
 import com.flipkart.krystal.vajram.facets.FacetValuesAdaptor;
 import com.flipkart.krystal.vajram.facets.InputDef;
 import com.flipkart.krystal.vajram.facets.InputSource;
@@ -97,14 +94,12 @@ import com.flipkart.krystal.vajram.facets.resolution.sdk.Resolve;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.reflect.TypeToken;
 import com.squareup.javapoet.AnnotationSpec;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
-import com.squareup.javapoet.MethodSpec.Builder;
 import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
@@ -128,6 +123,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.PrimitiveType;
@@ -225,32 +221,33 @@ public class VajramCodeGenerator {
     final ClassName inputBatch =
         ClassName.get(
             getParsedVajramData().packageName(),
-            getFacetUtilClassName(getParsedVajramData().vajramName()),
-            getBatchedInputsClassname(vajramName));
+            getFacetUtilClassName(getParsedVajramData().vajramInfo().vajramId().vajramId()),
+            getBatchedFacetsClassname(vajramName));
     final ClassName commonInputs =
         ClassName.get(
             getParsedVajramData().packageName(),
-            getFacetUtilClassName(getParsedVajramData().vajramName()),
+            getFacetUtilClassName(getParsedVajramData().vajramInfo().vajramId().vajramId()),
             getCommonFacetsClassname(vajramName));
-    final TypeName vajramResponseType = util.toTypeName(getParsedVajramData().responseType());
+    final TypeName vajramResponseType =
+        util.toTypeName(getParsedVajramData().vajramInfo().responseType());
 
     MethodSpec facetDefinitionsMethod = createFacetDefinitions();
     methodSpecs.add(facetDefinitionsMethod);
     Optional<MethodSpec> inputResolverMethod = createResolvers(resolverMap, depFanoutMap);
     inputResolverMethod.ifPresent(methodSpecs::add);
 
-    if (util.isRawAssignable(getParsedVajramData().vajramClass().asType(), IOVajram.class)) {
+    if (util.isRawAssignable(
+        getParsedVajramData().vajramInfo().vajramClass().asType(), IOVajram.class)) {
       methodSpecs.add(
           createIOVajramExecuteMethod(
               inputBatch,
               commonInputs,
-              vajramResponseType.annotated(AnnotationSpec.builder(Nullable.class).build())));
+              vajramResponseType.box().annotated(AnnotationSpec.builder(Nullable.class).build())));
     } else {
-      methodSpecs.add(
-          createComputeVajramExecuteMethod(vajramResponseType, inputBatch, commonInputs));
+      methodSpecs.add(createComputeVajramExecuteMethod(vajramResponseType));
     }
     if (needsBatching) {
-      methodSpecs.add(createInputConvertersMethod(inputBatch, commonInputs));
+      methodSpecs.add(createBatchFacetConvertersMethod(inputBatch, commonInputs));
     }
 
     StringWriter writer = new StringWriter();
@@ -259,8 +256,8 @@ public class VajramCodeGenerator {
           .indent("  ")
           .build()
           .writeTo(writer);
-    } catch (IOException ignored) {
-
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
     return writer.toString();
   }
@@ -297,14 +294,11 @@ public class VajramCodeGenerator {
    * => VajramID only.
    *
    * @param vajramResponseType Vajram response type
-   * @param batchableInputs ClassName for the batchableInputs class for the Vajram
-   * @param commonInputs ClassName for the commonInputs class for the Vajram
    * @return generated code for "executeCompute" {@link MethodSpec}
    */
-  private MethodSpec createComputeVajramExecuteMethod(
-      TypeName vajramResponseType, ClassName batchableInputs, ClassName commonInputs) {
+  private MethodSpec createComputeVajramExecuteMethod(TypeName vajramResponseType) {
 
-    Builder executeBuilder =
+    MethodSpec.Builder executeBuilder =
         methodBuilder(METHOD_EXECUTE_COMPUTE)
             .addModifiers(PUBLIC)
             .addParameter(ParameterizedTypeName.get(ImmutableList.class, Facets.class), INPUTS_LIST)
@@ -316,47 +310,23 @@ public class VajramCodeGenerator {
                         ClassName.get(Errable.class), vajramResponseType.box())))
             .addAnnotation(Override.class);
     if (needsBatching) {
-      CodeBlock.Builder codeBuilder = CodeBlock.builder();
-      Map<String, Object> valueMap = new HashMap<>();
-      valueMap.put(INPUTS, ClassName.get(Facets.class));
-      valueMap.put(UNMOD_INPUT, ClassName.get(UnBatchedFacets.class));
-      valueMap.put(INPUT_BATCHING, batchableInputs);
-      valueMap.put(COMMON_INPUT, commonInputs);
-      valueMap.put(RETURN_TYPE, vajramResponseType.box());
-      valueMap.put(VAJRAM_LOGIC_METHOD, getParsedVajramData().outputLogic().getSimpleName());
-      valueMap.put(MOD_INPUT, ClassName.get(BatchedFacets.class));
-      valueMap.put(IM_MAP, ClassName.get(ImmutableMap.class));
-      valueMap.put(IM_LIST, ClassName.get(ImmutableList.class));
-      valueMap.put(HASH_MAP, ClassName.get(HashMap.class));
-      valueMap.put(ARRAY_LIST, ClassName.get(ArrayList.class));
-      valueMap.put(COM_FUTURE, ClassName.get(CompletableFuture.class));
-      valueMap.put(LINK_HASH_MAP, ClassName.get(LinkedHashMap.class));
-      valueMap.put(MAP, ClassName.get(Map.class));
-      valueMap.put(LIST, ClassName.get(List.class));
-      valueMap.put(VAL_ERR, Errable.class);
-      valueMap.put(FUNCTION, ClassName.get(Function.class));
-      valueMap.put(OPTIONAL, ClassName.get(Optional.class));
-
-      TypeMirror returnType = getParsedVajramData().outputLogic().getReturnType();
-      checkState(
-          util.isRawAssignable(returnType, Map.class),
-          "Any vajram supporting inputDef batching must return map. Vajram: %s",
-          vajramName);
-      TypeMirror mapValue = getTypeParameters(returnType).get(1);
-      // TODO : check if this is needed for compute vajrams or should throw error
-      if (util.isRawAssignable(mapValue, CompletableFuture.class)) {
-        codeBuilder.addNamed(INPUT_BATCHING_FUTURE_CODE_BLOCK, valueMap);
-      } else {
-        codeBuilder.addNamed(INPUT_BATCHING_CODE_BLOCK, valueMap);
-      }
-      executeBuilder.addCode(codeBuilder.build());
+      String message = "Batching is not supported in ComputeVajrams";
+      util.error(
+          message,
+          getParsedVajramData().vajramInfo().inputs().stream()
+              .filter(InputModel::isBatched)
+              .findAny()
+              .<Element>map(InputModel::facetField)
+              .orElse(getParsedVajramData().vajramInfo().vajramClass()));
+      throw new VajramValidationException(message);
     } else { // TODO : Need non batched IO vajram to test this
-      nonBatchedComputeMethodBuilder(executeBuilder, false);
+      nonBatchedExecuteMethodBuilder(executeBuilder, false);
     }
     return executeBuilder.build();
   }
 
-  private void nonBatchedComputeMethodBuilder(Builder executeBuilder, boolean isIOVajram) {
+  private void nonBatchedExecuteMethodBuilder(
+      MethodSpec.Builder executeBuilder, boolean isIOVajram) {
     CodeBlock.Builder returnBuilder =
         CodeBlock.builder()
             .add(
@@ -368,26 +338,58 @@ public class VajramCodeGenerator {
                 ImmutableMap.class,
                 Function.class);
     List<CodeBlock> inputCodeBlocks = new ArrayList<>();
-    facetModels
-        .values()
-        .forEach(
-            inputDef -> {
-              if (inputDef instanceof DependencyModel dependencyModel) {
-                VajramID depVajramId = dependencyModel.depVajramId();
-                String depRequestClass = dependencyModel.depReqClassQualifiedName();
-                VajramInfoLite depVajramInfo =
-                    checkNotNull(
-                        vajramDefs.get(depVajramId),
-                        "Could not find ParsedVajramData for %s",
-                        depVajramId);
-                final TypeName boxedResponseType =
-                    util.toTypeName(depVajramInfo.responseType()).box();
-                final String variableName = toJavaName(inputDef.name());
-                final String depVariableName = variableName + RESPONSES_SUFFIX;
-                if (dependencyModel.canFanout()) {
-                  CodeBlock.Builder codeBlock = CodeBlock.builder();
-                  codeBlock.addNamed(
-                      """
+    ClassName allFacetsClass =
+        ClassName.get(
+            packageName, getFacetUtilClassName(vajramName), getAllFacetsClassname(vajramName));
+    List<? extends VariableElement> outputLogicParams =
+        getParsedVajramData().outputLogic().getParameters();
+    boolean outputLogicNeedsAllFacetsObject;
+    List<FacetGenModel> neededFacetsInOrder;
+    if (outputLogicParams.size() == 1
+        && util.getProcessingEnv()
+            .getTypeUtils()
+            .isAssignable(
+                outputLogicParams.get(0).asType(),
+                util.getTypeElement(allFacetsClass.canonicalName()).asType())) {
+      // Since the execute method consumes the all facets class, it means the output logic needs all
+      // facets of the vajram except the output facet.
+      neededFacetsInOrder = facetModels.values().stream().toList();
+      outputLogicNeedsAllFacetsObject = true;
+    } else {
+      neededFacetsInOrder =
+          outputLogicParams.stream()
+              .map(
+                  param -> {
+                    String facetName = util.inferFacetName(param);
+                    FacetGenModel facet = facetModels.get(facetName);
+                    if (facet == null) {
+                      String message = "Could not find a facet with name %s".formatted(facetName);
+                      util.error(message, param);
+                      throw new VajramValidationException(message);
+                    }
+                    return facet;
+                  })
+              .toList();
+      outputLogicNeedsAllFacetsObject = false;
+    }
+
+    neededFacetsInOrder.forEach(
+        inputDef -> {
+          if (inputDef instanceof DependencyModel dependencyModel) {
+            VajramID depVajramId = dependencyModel.depVajramId();
+            String depRequestClass = dependencyModel.depReqClassQualifiedName();
+            VajramInfoLite depVajramInfo =
+                checkNotNull(
+                    vajramDefs.get(depVajramId),
+                    "Could not find ParsedVajramData for %s",
+                    depVajramId);
+            final TypeName boxedResponseType = util.toTypeName(depVajramInfo.responseType()).box();
+            final String variableName = toJavaName(inputDef.name());
+            final String depVariableName = variableName + RESPONSES_SUFFIX;
+            if (dependencyModel.canFanout()) {
+              CodeBlock.Builder codeBlock = CodeBlock.builder();
+              codeBlock.addNamed(
+                  """
                             $depResp:T<$request:T, $response:T> $depResponse:L =
                                  new $depResp:T<>(
                                      element.<$response:T>getDepValue($variable:S).values().entrySet().stream()
@@ -401,29 +403,29 @@ public class VajramCodeGenerator {
                                              $imMap:T.toImmutableMap(
                                                  e -> $request:T.from(e.getKey()), java.util.Map.Entry::getValue)));
                              """,
-                      ImmutableMap.of(
-                          DEP_RESP,
-                          DependencyResponse.class,
-                          REQUEST,
-                          toClassName(depRequestClass),
-                          RESPONSE,
-                          boxedResponseType,
-                          VARIABLE,
-                          inputDef.name(),
-                          DEP_RESPONSE,
-                          depVariableName,
-                          IM_MAP,
-                          ImmutableMap.class,
-                          SKIPPED_EXCEPTION,
-                          SkippedExecutionException.class));
-                  inputCodeBlocks.add(CodeBlock.builder().add(depVariableName).build());
-                  returnBuilder.add(codeBlock.build());
-                } else {
-                  if (dependencyModel.isMandatory()) {
-                    inputCodeBlocks.add(
-                        CodeBlock.builder()
-                            .addNamed(
-                                """
+                  ImmutableMap.of(
+                      DEP_RESP,
+                      DependencyResponse.class,
+                      REQUEST,
+                      toClassName(depRequestClass),
+                      RESPONSE,
+                      boxedResponseType,
+                      VARIABLE,
+                      inputDef.name(),
+                      DEP_RESPONSE,
+                      depVariableName,
+                      IM_MAP,
+                      ImmutableMap.class,
+                      SKIPPED_EXCEPTION,
+                      SkippedExecutionException.class));
+              inputCodeBlocks.add(CodeBlock.builder().add(depVariableName).build());
+              returnBuilder.add(codeBlock.build());
+            } else {
+              if (dependencyModel.isMandatory()) {
+                inputCodeBlocks.add(
+                    CodeBlock.builder()
+                        .addNamed(
+                            """
                                     element.<$response:T>getDepValue($variable:S)
                                         .values()
                                         .entrySet()
@@ -432,21 +434,21 @@ public class VajramCodeGenerator {
                                         .getValue()
                                         .getValueOrThrow()
                                         .orElseThrow(() -> new $illegalArgument:T("Missing mandatory dependencyDef '$variable:L' in vajram '$vajram:L'"))""",
-                                ImmutableMap.of(
-                                    RESPONSE,
-                                    boxedResponseType,
-                                    VARIABLE,
-                                    inputDef.name(),
-                                    ILLEGAL_ARGUMENT,
-                                    IllegalArgumentException.class,
-                                    "vajram",
-                                    vajramName))
-                            .build());
-                  } else {
-                    inputCodeBlocks.add(
-                        CodeBlock.builder()
-                            .addNamed(
-                                """
+                            ImmutableMap.of(
+                                RESPONSE,
+                                boxedResponseType,
+                                VARIABLE,
+                                inputDef.name(),
+                                ILLEGAL_ARGUMENT,
+                                IllegalArgumentException.class,
+                                "vajram",
+                                vajramName))
+                        .build());
+              } else {
+                inputCodeBlocks.add(
+                    CodeBlock.builder()
+                        .addNamed(
+                            """
                                   element.<$response:T>getDepValue($variable:S)
                                       .values()
                                       .entrySet()
@@ -455,26 +457,26 @@ public class VajramCodeGenerator {
                                       .getValue()
                                       .value()
                                       .orElse(null)""",
-                                ImmutableMap.of(
-                                    RESPONSE, boxedResponseType, VARIABLE, inputDef.name()))
-                            .build());
-                  }
-                }
-              } else {
-                // call output logic method with all inputDef values
-                if (inputDef.isMandatory()) {
-                  inputCodeBlocks.add(
-                      CodeBlock.builder()
-                          .add("element.getInputValueOrThrow($S)", inputDef.name())
-                          .build());
-                } else {
-                  inputCodeBlocks.add(
-                      CodeBlock.builder()
-                          .add("element.getInputValueOrDefault($S, null)", inputDef.name())
-                          .build());
-                }
+                            ImmutableMap.of(RESPONSE, boxedResponseType, VARIABLE, inputDef.name()))
+                        .build());
               }
-            });
+            }
+          } else {
+            // call output logic method with all inputDef values
+            if (inputDef.isMandatory()) {
+              inputCodeBlocks.add(
+                  CodeBlock.builder()
+                      .add("element.getInputValueOrThrow($S)", inputDef.name())
+                      .build());
+            } else {
+              inputCodeBlocks.add(
+                  CodeBlock.builder()
+                      .add("element.getInputValueOrDefault($S, null)", inputDef.name())
+                      .build());
+            }
+          }
+        });
+    String methodCallSuffix;
     if (isIOVajram) {
       TypeMirror returnType = getParsedVajramData().outputLogic().getReturnType();
       if (!util.isRawAssignable(returnType, CompletableFuture.class)) {
@@ -485,18 +487,31 @@ public class VajramCodeGenerator {
         util.error(errorMessage, getParsedVajramData().outputLogic());
         throw new VajramValidationException(errorMessage);
       }
-      returnBuilder.add(
-          "\nreturn ($L(new $T(\n",
-          getParsedVajramData().outputLogic().getSimpleName(),
-          ClassName.get(
-              packageName, getFacetUtilClassName(vajramName), getAllFacetsClassname(vajramName)));
+      if (outputLogicNeedsAllFacetsObject) {
+        returnBuilder.add(
+            "\nreturn ($L(new $T(\n",
+            getParsedVajramData().outputLogic().getSimpleName(),
+            allFacetsClass);
+        methodCallSuffix = ")));\n";
+      } else {
+        returnBuilder.add("\nreturn $L(\n", getParsedVajramData().outputLogic().getSimpleName());
+        methodCallSuffix = ");\n";
+      }
     } else {
-      returnBuilder.add(
-          "\nreturn $T.errableFrom(() -> $L(new $T(\n",
-          Errable.class,
-          getParsedVajramData().outputLogic().getSimpleName(),
-          ClassName.get(
-              packageName, getFacetUtilClassName(vajramName), getAllFacetsClassname(vajramName)));
+      if (outputLogicNeedsAllFacetsObject) {
+        returnBuilder.add(
+            "\nreturn $T.errableFrom(() -> $L(new $T(\n",
+            Errable.class,
+            getParsedVajramData().outputLogic().getSimpleName(),
+            allFacetsClass);
+        methodCallSuffix = ")));\n";
+      } else {
+        returnBuilder.add(
+            "\nreturn $T.errableFrom(() -> $L(\n",
+            Errable.class,
+            getParsedVajramData().outputLogic().getSimpleName());
+        methodCallSuffix = "));\n";
+      }
     }
     // merge the code blocks for facets
     for (int i = 0; i < inputCodeBlocks.size(); i++) {
@@ -507,31 +522,34 @@ public class VajramCodeGenerator {
         returnBuilder.add(",\n");
       }
     }
-    returnBuilder.add(")));\n");
+    returnBuilder.add(methodCallSuffix);
     returnBuilder.add("}));\n");
     executeBuilder.addCode(returnBuilder.build());
   }
 
   /**
-   * Method to generate "getInputsConvertor" function
+   * Method to generate "getFacetsConvertor" function
    *
    * @param batchableInputs Generated Vajram specific InputUtil.BatchableInputs class
    * @param commonInputs Generated Vajram specific InputUtil.CommonInputs class
    * @return {@link MethodSpec}
    */
-  private MethodSpec createInputConvertersMethod(
+  private MethodSpec createBatchFacetConvertersMethod(
       ClassName batchableInputs, ClassName commonInputs) {
-    Builder inputConvertersBuilder =
-        methodBuilder(METHOD_GET_INPUTS_CONVERTOR)
+    MethodSpec.Builder inputConvertersBuilder =
+        methodBuilder(METHOD_GET_FACETS_CONVERTOR)
             .addModifiers(PUBLIC)
             .returns(
                 ParameterizedTypeName.get(
-                    ClassName.get(FacetsConverter.class), batchableInputs, commonInputs))
+                    ClassName.get(Optional.class),
+                    ParameterizedTypeName.get(
+                        ClassName.get(FacetsConverter.class), batchableInputs, commonInputs)))
             .addAnnotation(Override.class);
     inputConvertersBuilder.addCode(
         CodeBlock.builder()
             .addStatement(
-                "return $T.CONVERTER",
+                "return $T.of($T.%s)".formatted(CONVERTER),
+                Optional.class,
                 ClassName.get(packageName, getFacetUtilClassName(vajramName)))
             .build());
     return inputConvertersBuilder.build();
@@ -548,7 +566,7 @@ public class VajramCodeGenerator {
   private MethodSpec createIOVajramExecuteMethod(
       ClassName batchableInputs, ClassName commonFacets, TypeName vajramResponseType) {
 
-    Builder executeMethodBuilder =
+    MethodSpec.Builder executeMethodBuilder =
         methodBuilder(METHOD_EXECUTE)
             .addModifiers(PUBLIC)
             .addParameter(ParameterizedTypeName.get(ImmutableList.class, Facets.class), INPUTS_LIST)
@@ -562,13 +580,17 @@ public class VajramCodeGenerator {
 
     CodeBlock.Builder codeBuilder = CodeBlock.builder();
     if (needsBatching) {
+      ExecutableElement outputLogic = getParsedVajramData().outputLogic();
+
       Map<String, Object> valueMap = new HashMap<>();
       valueMap.put(INPUTS, ClassName.get(Facets.class));
       valueMap.put(UNMOD_INPUT, ClassName.get(UnBatchedFacets.class));
       valueMap.put(INPUT_BATCHING, batchableInputs);
+      valueMap.put(
+          Constants.FACET_UTIL, ClassName.get(packageName, getFacetUtilClassName(vajramName)));
       valueMap.put(COMMON_INPUT, commonFacets);
       valueMap.put(RETURN_TYPE, vajramResponseType);
-      valueMap.put(VAJRAM_LOGIC_METHOD, getParsedVajramData().outputLogic().getSimpleName());
+      valueMap.put(VAJRAM_LOGIC_METHOD, outputLogic.getSimpleName());
       valueMap.put(MOD_INPUT, ClassName.get(BatchedFacets.class));
       valueMap.put(IM_MAP, ClassName.get(ImmutableMap.class));
       valueMap.put(IM_LIST, ClassName.get(ImmutableList.class));
@@ -582,21 +604,25 @@ public class VajramCodeGenerator {
       valueMap.put(FUNCTION, ClassName.get(Function.class));
       valueMap.put(OPTIONAL, ClassName.get(Optional.class));
 
-      TypeMirror returnType = getParsedVajramData().outputLogic().getReturnType();
+      TypeMirror returnType = outputLogic.getReturnType();
       checkState(
           util.isRawAssignable(processingEnv.getTypeUtils().erasure(returnType), Map.class),
-          "Any vajram supporting inputDef batching must return map. Vajram: %s",
+          "A vajram supporting input batching must return map. Vajram: %s",
           vajramName);
       TypeMirror mapValue = getTypeParameters(returnType).get(1);
-      // TODO : check if this is needed for compute vajrams or should throw error
-      if (util.isRawAssignable(mapValue, CompletableFuture.class)) {
-        codeBuilder.addNamed(INPUT_BATCHING_FUTURE_CODE_BLOCK, valueMap);
-      } else {
-        codeBuilder.addNamed(INPUT_BATCHING_CODE_BLOCK, valueMap);
+      if (!util.isRawAssignable(mapValue, CompletableFuture.class)) {
+        String message =
+            """
+                Batched IO Vajram should return a map whose value type must be `CompletableFuture`.
+                Violating vajram: %s"""
+                .formatted(vajramName);
+        util.error(message, outputLogic);
+        throw new VajramValidationException(message);
       }
+      codeBuilder.addNamed(INPUT_BATCHING_FUTURE_CODE_BLOCK, valueMap);
       executeMethodBuilder.addCode(codeBuilder.build());
     } else {
-      nonBatchedComputeMethodBuilder(executeMethodBuilder, true);
+      nonBatchedExecuteMethodBuilder(executeMethodBuilder, true);
     }
     return executeMethodBuilder.build();
   }
@@ -613,7 +639,7 @@ public class VajramCodeGenerator {
       Map<String, ? extends List<ExecutableElement>> resolverMap,
       Map<String, Boolean> depFanoutMap) {
     String dependencyDef = "dependencyDef";
-    Builder resolveInputsBuilder =
+    MethodSpec.Builder resolveInputsBuilder =
         methodBuilder(METHOD_RESOLVE_INPUT_OF_DEPENDENCY)
             .addModifiers(PUBLIC)
             .addParameter(String.class, dependencyDef)
@@ -778,7 +804,7 @@ public class VajramCodeGenerator {
       CodeBlock.Builder ifBlockBuilder,
       Map<String, Boolean> depFanoutMap,
       VariableElement parameter) {
-    FacetGenModel vajramInputDef = facetModels.get(usingInputName);
+    FacetGenModel facetDef = facetModels.get(usingInputName);
     Resolve resolve =
         checkNotNull(method.getAnnotation(Resolve.class), "Resolver method cannot be null");
     String resolvedDep = resolve.depName();
@@ -794,7 +820,7 @@ public class VajramCodeGenerator {
       throw new VajramValidationException(message);
     }
     //    ReturnType returnType
-    if (vajramInputDef instanceof DependencyModel dependencyModel) {
+    if (facetDef instanceof DependencyModel dependencyModel) {
       String variableName = toJavaName(usingInputName);
       final VajramInfoLite vajramInfoLite =
           checkNotNull(
@@ -835,12 +861,13 @@ public class VajramCodeGenerator {
                  .iterator()
                  .next()
                  .getValue()""";
-        if (unboxedDepType.equals(TypeName.get(parameter.asType()))) {
-          // This means this dependencyDef in "Using" annotation is not a fanout and the dev has
-          // requested the value directly. So we extract the only value from dependencyDef response
-          // and
-          // provide it.
-          if (vajramInputDef.isMandatory()) {
+        if (facetDef.isMandatory()) {
+          if (unboxedDepType.equals(TypeName.get(parameter.asType()))) {
+            // This means this dependencyDef in "Using" annotation is not a fanout and the dev has
+            // requested the value directly. So we extract the only value from dependencyDef
+            // response
+            // and
+            // provide it.
             String code =
                 depValueAccessorCode
                     + """
@@ -863,33 +890,36 @@ public class VajramCodeGenerator {
             util.error(message, parameter);
             throw new VajramValidationException(message);
           }
-        } else if (util.isRawAssignable(parameter.asType(), Errable.class)) {
-          // This means this dependencyDef in "Using" annotation is not a fanout and the dev has
-          // requested the 'Errable'. So we extract the only Errable from dependencyDef
-          // response and provide it.
-          ifBlockBuilder.addStatement(
-              depValueAccessorCode,
-              ParameterizedTypeName.get(ClassName.get(Errable.class), boxedDepType),
-              variableName,
-              boxedDepType,
-              usingInputName);
-        } else if (util.isRawAssignable(parameter.asType(), Optional.class)) {
-          // This means this dependencyDef in "Using" annotation is not a fanout and the dev has
-          // requested an 'Optional'. So we retrieve the only Errable from the dependencyDef
-          // response, extract the optional and provide it.
-          String code = depValueAccessorCode + ".value()";
-          ifBlockBuilder.addStatement(
-              code,
-              ParameterizedTypeName.get(ClassName.get(Optional.class), boxedDepType),
-              variableName,
-              boxedDepType,
-              usingInputName);
         } else {
-          String message =
-              "Unrecognized parameter type %s in resolver %s of vajram %s"
-                  .formatted(parameter.asType(), resolverName, this.vajramName);
-          util.error(message, parameter);
-          throw new VajramValidationException(message);
+          // dependency is optional then accept only errable and optional in resolver
+          if (util.isRawAssignable(parameter.asType(), Errable.class)) {
+            // This means this dependencyDef in "Using" annotation is not a fanout and the dev has
+            // requested the 'Errable'. So we extract the only Errable from dependencyDef
+            // response and provide it.
+            ifBlockBuilder.addStatement(
+                depValueAccessorCode,
+                ParameterizedTypeName.get(ClassName.get(Errable.class), boxedDepType),
+                variableName,
+                boxedDepType,
+                usingInputName);
+          } else if (util.isRawAssignable(parameter.asType(), Optional.class)) {
+            // This means this dependencyDef in "Using" annotation is not a fanout and the dev has
+            // requested an 'Optional'. So we retrieve the only Errable from the dependencyDef
+            // response, extract the optional and provide it.
+            String code = depValueAccessorCode + ".value()";
+            ifBlockBuilder.addStatement(
+                code,
+                ParameterizedTypeName.get(ClassName.get(Optional.class), boxedDepType),
+                variableName,
+                boxedDepType,
+                usingInputName);
+          } else {
+            String message =
+                "Unrecognized parameter type %s in resolver %s of vajram %s"
+                    .formatted(parameter.asType(), resolverName, this.vajramName);
+            util.error(message, parameter);
+            throw new VajramValidationException(message);
+          }
         }
       }
     }
@@ -1036,7 +1066,7 @@ public class VajramCodeGenerator {
    */
   private MethodSpec createFacetDefinitions() {
     // Method : getFacetDefinitions
-    Builder facetDefinitionsBuilder =
+    MethodSpec.Builder facetDefinitionsBuilder =
         methodBuilder(GET_FACET_DEFINITIONS)
             .addModifiers(PUBLIC)
             .returns(ParameterizedTypeName.get(ImmutableList.class, VajramFacetDefinition.class))
@@ -1162,7 +1192,7 @@ public class VajramCodeGenerator {
 
   public String codeGenVajramRequest() {
     ImmutableList<InputModel<?>> inputDefs = vajramInfo.inputs();
-    Builder requestConstructor = constructorBuilder().addModifiers(PRIVATE);
+    MethodSpec.Builder requestConstructor = constructorBuilder().addModifiers(PRIVATE);
     ClassName builderClassType =
         ClassName.get(packageName + Constants.DOT_SEPARATOR + requestClassName, "Builder");
     TypeSpec.Builder requestClass =
@@ -1288,8 +1318,8 @@ public class VajramCodeGenerator {
               .build());
     }
 
-    requestClass.addFields(inputNameFields.stream().map(FieldSpec.Builder::build)::iterator);
-    requestClass.addFields(inputSpecFields.stream().map(FieldSpec.Builder::build)::iterator);
+    requestClass.addFields(inputNameFields.stream().map(FieldSpec.Builder::build).toList());
+    requestClass.addFields(inputSpecFields.stream().map(FieldSpec.Builder::build).toList());
 
     builderClass.addMethod(
         // public Request build(){
@@ -1319,8 +1349,8 @@ public class VajramCodeGenerator {
                   .build())
           .build()
           .writeTo(writer);
-    } catch (IOException ignored) {
-
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
     return writer.toString();
   }
@@ -1353,8 +1383,9 @@ public class VajramCodeGenerator {
       PrimitiveType primitiveType;
       try {
         primitiveType = processingEnv.getTypeUtils().unboxedType(javaType.type().get());
-      } catch (IllegalArgumentException ignored) {
+      } catch (IllegalArgumentException e) {
         // This means the type is not a boxed type
+        log.info("", e);
         return javaType;
       }
       return new TypeAndName(
@@ -1364,39 +1395,43 @@ public class VajramCodeGenerator {
   }
 
   private FromAndTo fromAndToMethods(
-      List<? extends FacetGenModel> inputDefs, ClassName enclosingClass) {
-    //noinspection rawtypes
-    Builder toInputValues =
+      List<? extends FacetGenModel> facetDefs, ClassName enclosingClass) {
+    MethodSpec.Builder toFacetValues =
         methodBuilder("toFacetValues")
             .returns(Facets.class)
             .addModifiers(PUBLIC)
             .addAnnotation(Override.class)
             .addStatement(
-                "$T builder = new $T<>($L)",
-                new TypeToken<Map<String, FacetValue<Object>>>() {}.getType(),
-                new TypeToken<HashMap>() {}.getType(),
-                inputDefs.size());
-    Builder fromInputValues =
+                "return new $T($T.of(%s))"
+                    .formatted(
+                        facetDefs.stream()
+                            .map(f -> "$S, $T.withValue(this.$L)")
+                            .collect(Collectors.joining(","))),
+                Stream.of(
+                        Stream.of(Facets.class, ImmutableMap.class),
+                        facetDefs.stream()
+                            .flatMap(
+                                facet ->
+                                    Stream.of(
+                                        facet.name(), Errable.class, toJavaName(facet.name()))))
+                    .flatMap(Function.identity())
+                    .toArray());
+
+    MethodSpec.Builder fromFacetValues =
         methodBuilder("from")
             .returns(enclosingClass)
             .addModifiers(PUBLIC, STATIC)
             .addParameter(Facets.class, "values");
-    for (FacetGenModel inputDef : inputDefs) {
-      String inputJavaName = toJavaName(inputDef.name());
-      toInputValues.addStatement(
-          "builder.put($S, $T.withValue(this.$L))", inputDef.name(), Errable.class, inputJavaName);
-    }
-    toInputValues.addStatement("return new $T(builder)", Facets.class);
 
-    List<String> inputNames = inputDefs.stream().map(FacetGenModel::name).toList();
-    fromInputValues.addStatement(
+    List<String> inputNames = facetDefs.stream().map(FacetGenModel::name).toList();
+    fromFacetValues.addStatement(
         "return new $T(%s)"
             .formatted(
                 inputNames.stream()
                     .map(s -> "values.getInputValueOrDefault($S, null)")
                     .collect(Collectors.joining(", "))),
         Stream.concat(Stream.of(enclosingClass), inputNames.stream()).toArray());
-    return new FromAndTo(fromInputValues.build(), toInputValues.build());
+    return new FromAndTo(fromFacetValues.build(), toFacetValues.build());
   }
 
   private TypeAndName getTypeName(DataType<?> dataType) {
@@ -1475,10 +1510,10 @@ public class VajramCodeGenerator {
 
   private String codeGenSimpleInputUtil() {
     TypeSpec.Builder inputUtilClass = createInputUtilClass();
-    String className = getAllFacetsClassname(vajramName);
     TypeSpec.Builder allInputsClass =
-        util.classBuilder(className)
+        util.classBuilder(getAllFacetsClassname(vajramName))
             .addModifiers(FINAL, STATIC)
+            .addSuperinterface(FacetContainer.class)
             .addAnnotations(recordAnnotations());
     List<FieldTypeName> fieldsList = new ArrayList<>();
     vajramInfo
@@ -1515,8 +1550,8 @@ public class VajramCodeGenerator {
       JavaFile.builder(packageName, inputUtilClass.addType(allInputsClass.build()).build())
           .build()
           .writeTo(writer);
-    } catch (IOException ignored) {
-
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
     return writer.toString();
   }
@@ -1563,7 +1598,7 @@ public class VajramCodeGenerator {
     try {
       TypeSpec.Builder inputUtilClass = createInputUtilClass();
       VajramInfo vajramFacetsDef = vajramInfo;
-      String imClassName = getBatchedInputsClassname(vajramName);
+      String imClassName = getBatchedFacetsClassname(vajramName);
       String ciClassName = getCommonFacetsClassname(vajramName);
       FromAndTo imFromAndTo =
           fromAndToMethods(
@@ -1591,8 +1626,10 @@ public class VajramCodeGenerator {
               .addAnnotations(recordAnnotations())
               .addMethod(ciFromAndTo.to())
               .addMethod(ciFromAndTo.from());
-      ClassName imType = ClassName.get(packageName, getFacetUtilClassName(vajramName), imClassName);
-      ClassName ciType = ClassName.get(packageName, getFacetUtilClassName(vajramName), ciClassName);
+      ClassName batchFacetsType =
+          ClassName.get(packageName, getFacetUtilClassName(vajramName), imClassName);
+      ClassName commonFacetsType =
+          ClassName.get(packageName, getFacetUtilClassName(vajramName), ciClassName);
       List<FieldTypeName> ciFieldsList = new ArrayList<>();
       List<FieldTypeName> imFieldsList = new ArrayList<>();
       vajramFacetsDef
@@ -1632,7 +1669,8 @@ public class VajramCodeGenerator {
       generateConstructor(imFieldsList).ifPresent(inputsNeedingBatching::addMethod);
 
       TypeName parameterizedTypeName =
-          ParameterizedTypeName.get(ClassName.get(FacetsConverter.class), imType, ciType);
+          ParameterizedTypeName.get(
+              ClassName.get(FacetsConverter.class), batchFacetsType, commonFacetsType);
       CodeBlock.Builder initializer =
           CodeBlock.builder()
               .add(
@@ -1640,17 +1678,18 @@ public class VajramCodeGenerator {
                   util.classBuilder("")
                       .addSuperinterface(parameterizedTypeName)
                       .addMethod(
-                          methodBuilder("apply")
+                          methodBuilder("getBatched")
                               .addModifiers(PUBLIC)
-                              .returns(
-                                  ParameterizedTypeName.get(
-                                      ClassName.get(UnBatchedFacets.class), imType, ciType))
-                              .addParameter(Facets.class, "inputValues")
-                              .addStatement(
-                                  "return new $T<>($T.from(inputValues),$T.from(inputValues))",
-                                  UnBatchedFacets.class,
-                                  imType,
-                                  ciType)
+                              .returns(batchFacetsType)
+                              .addParameter(Facets.class, "facetValues")
+                              .addStatement("return $T.from(facetValues)", batchFacetsType)
+                              .build())
+                      .addMethod(
+                          methodBuilder("getCommon")
+                              .addModifiers(PUBLIC)
+                              .returns(commonFacetsType)
+                              .addParameter(Facets.class, "facetValues")
+                              .addStatement("return $T.from(facetValues)", commonFacetsType)
                               .build())
                       .build());
       FieldSpec.Builder converter =
@@ -1666,8 +1705,8 @@ public class VajramCodeGenerator {
                   .build())
           .build()
           .writeTo(writer);
-    } catch (IOException ignored) {
-
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
     return writer.toString();
   }
@@ -1718,7 +1757,7 @@ public class VajramCodeGenerator {
         depSpecFields.add(inputSpecField.addModifiers(STATIC, FINAL));
       }
     }
-    return classBuilder.addFields(depSpecFields.stream().map(FieldSpec.Builder::build)::iterator);
+    return classBuilder.addFields(depSpecFields.stream().map(FieldSpec.Builder::build).toList());
   }
 
   public String getRequestClassName() {
@@ -1730,10 +1769,7 @@ public class VajramCodeGenerator {
   }
 
   private static String toJavaName(String inputName) {
-    if (!inputName.contains("_")) {
-      return inputName;
-    }
-    return LOWER_UNDERSCORE.to(LOWER_CAMEL, inputName);
+    return inputName;
   }
 
   private static TypeName optional(TypeName javaType) {

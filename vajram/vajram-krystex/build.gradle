@@ -8,17 +8,18 @@ plugins {
 description 'An implementation of a vajram executor powered by the Krystex module.'
 
 dependencies {
-    api project(':vajram')
+    api project(':vajram-java-sdk')
     api project(':krystex')
 
-    annotationProcessor 'com.flipkart.krystal:krystal-plugin'
-    testAnnotationProcessor 'com.flipkart.krystal:krystal-plugin'
+    annotationProcessor 'com.flipkart.krystal:vajram-codegen'
+    testAnnotationProcessor 'com.flipkart.krystal:vajram-codegen'
 
     testImplementation 'com.fasterxml.jackson.core:jackson-annotations'
     testImplementation 'com.fasterxml.jackson.core:jackson-databind'
     testImplementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8'
     testImplementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
-
+    testImplementation 'org.slf4j:slf4j-api'
+    testImplementation 'org.slf4j:slf4j-log4j12'
 }
 
 tasks.named('spotlessJava').configure { mustRunAfter('compileTestJava') }
@@ -63,6 +64,7 @@ compileTestJava {
         options.compilerArgs += [
                 '--module-path', classpath.asPath,
                 '--patch-module', "$moduleName=" + files(sourceSets.test.java.srcDirs).asPath,
+                '-A' + COGENGEN_PHASE_KEY + '=' + IMPLS,
         ]
     }
 }

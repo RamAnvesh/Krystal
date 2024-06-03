@@ -28,13 +28,11 @@ import com.flipkart.krystal.vajram.samples.calculator.divider.DividerRequest;
 import com.flipkart.krystal.vajramexecutor.krystex.InputBatcherConfig;
 import com.flipkart.krystal.vajramexecutor.krystex.KrystexVajramExecutor;
 import com.flipkart.krystal.vajramexecutor.krystex.VajramKryonGraph;
-import com.flipkart.krystal.vajramexecutor.krystex.VajramKryonGraph.Builder;
 import com.flipkart.krystal.vajramexecutor.krystex.testharness.VajramTestHarness;
 import io.reactivex.rxjava3.annotations.NonNull;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.core.Observable;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,12 +41,12 @@ import org.junit.jupiter.api.Test;
 
 class FormulaTest {
 
-  private Builder graph;
+  private VajramKryonGraph.Builder graph;
   private static final String REQUEST_ID = "formulaTest";
 
   @BeforeEach
   void setUp() {
-    graph = loadFromClasspath(Formula.class.getPackageName());
+    graph = Util.loadFromClasspath(Formula.class.getPackageName());
     Adder.CALL_COUNTER.reset();
   }
 
@@ -244,12 +242,6 @@ class FormulaTest {
 
   private record FormulaRequestContext(int a, int p, int q, String requestId)
       implements ApplicationRequestContext {}
-
-  private static Builder loadFromClasspath(String... packagePrefixes) {
-    Builder builder = VajramKryonGraph.builder();
-    Arrays.stream(packagePrefixes).forEach(builder::loadFromPackage);
-    return builder;
-  }
 
   @Test
   void formula_success_withAllMockedDependencies() throws Exception {

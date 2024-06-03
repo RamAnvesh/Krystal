@@ -44,7 +44,6 @@ import com.flipkart.krystal.vajram.tags.Service;
 import com.flipkart.krystal.vajram.tags.ServiceApi;
 import com.flipkart.krystal.vajram.tags.VajramTags;
 import com.flipkart.krystal.vajram.tags.VajramTags.VajramTypes;
-import com.flipkart.krystal.vajramexecutor.krystex.VajramKryonGraph.Builder;
 import com.flipkart.krystal.vajramexecutor.krystex.test_vajrams.friendsservice.FriendsService;
 import com.flipkart.krystal.vajramexecutor.krystex.test_vajrams.hello.Hello;
 import com.flipkart.krystal.vajramexecutor.krystex.test_vajrams.hello.HelloRequest;
@@ -247,7 +246,42 @@ class KrystexVajramExecutorTest {
     assertThat(helloString)
         .succeedsWithin(TIMEOUT)
         .isEqualTo(
-            ("Hello Friends! Firstname Lastname (user_id_1:friend1), Firstname Lastname (user_id_1:friend2)"));
+            "Hello Friends! Firstname Lastname (user_id_1:friend1), Firstname Lastname (user_id_1:friend2)");
+    assertEquals(1, TestUserService.CALL_COUNTER.sum());
+  }
+
+  @ParameterizedTest
+  @MethodSource("executorConfigsToTest")
+  void executeWithFacets_success(
+      KryonExecStrategy kryonExecStrategy, GraphTraversalStrategy graphTraversalStrategy) {
+    graph =
+        loadFromClasspath(
+                "com.flipkart.krystal.vajramexecutor.krystex.test_vajrams.userservice",
+                "com.flipkart.krystal.vajramexecutor.krystex.test_vajrams.friendsservice",
+                "com.flipkart.krystal.vajramexecutor.krystex.test_vajrams.hellofriendsv2")
+            .build();
+    graph.registerInputBatchers(
+        ofVajram(TestUserService.class),
+        InputBatcherConfig.simple(() -> new InputBatcherImpl<>(2)));
+    CompletableFuture<String> helloString;
+    requestContext.requestId("sequentialDependency");
+    try (KrystexVajramExecutor<TestRequestContext> krystexVajramExecutor =
+        graph.createExecutor(
+            requestContext,
+            KryonExecutorConfig.builder()
+                .kryonExecStrategy(kryonExecStrategy)
+                .graphTraversalStrategy(graphTraversalStrategy)
+                .build())) {
+      helloString =
+          krystexVajramExecutor.executeWithFacets(
+              ofVajram(HelloFriendsV2.class),
+              testRequestContext -> helloFriendsV2Request(testRequestContext).toFacetValues(),
+              KryonExecutionConfig.builder().executionId("execution").build());
+    }
+    assertThat(helloString)
+        .succeedsWithin(TIMEOUT)
+        .isEqualTo(
+            "Hello Friends! Firstname Lastname (user_id_1:friend1), Firstname Lastname (user_id_1:friend2)");
     assertEquals(1, TestUserService.CALL_COUNTER.sum());
   }
 
@@ -854,7 +888,7 @@ class KrystexVajramExecutorTest {
   }
 
   private static VajramKryonGraph.Builder loadFromClasspath(String... packagePrefixes) {
-    Builder builder = VajramKryonGraph.builder();
+    VajramKryonGraph.Builder builder = VajramKryonGraph.builder();
     Arrays.stream(packagePrefixes).forEach(builder::loadFromPackage);
 
     Predicate<LogicExecutionContext> isIOVajram =

@@ -1,11 +1,11 @@
 package com.flipkart.krystal.krystex.kryon;
 
+import static com.flipkart.krystal.krystex.kryon.FacetType.INPUT;
 import static com.flipkart.krystal.krystex.kryon.KryonExecutor.GraphTraversalStrategy.BREADTH;
 import static com.flipkart.krystal.utils.Futures.linkFutures;
 import static com.flipkart.krystal.utils.Futures.propagateCancellation;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Sets.union;
 import static java.util.concurrent.CompletableFuture.allOf;
 import static java.util.concurrent.CompletableFuture.completedFuture;
@@ -68,7 +68,6 @@ public final class KryonExecutor implements KrystalExecutor {
   private final KryonExecutorConfig executorConfig;
   private final Lease<? extends ExecutorService> commandQueueLease;
   private final String instanceId;
-
   /**
    * We need to have a list of request scope global decorators corresponding to each type, in case
    * we want to have a decorator of one type but based on some config in request, we want to choose
@@ -377,9 +376,7 @@ public final class KryonExecutor implements KrystalExecutor {
         this.<GranuleResponse>executeCommand(
                 new ForwardGranule(
                     kryonId,
-                    kryonDefinition.getOutputLogicDefinition().inputNames().stream()
-                        .filter(s -> !kryonDefinition.dependencyKryons().containsKey(s))
-                        .collect(toImmutableSet()),
+                    kryonDefinition.facetsByType(INPUT),
                     kryonExecution.facets(),
                     kryonDefinitionRegistry.getDependantChainsStart(),
                     requestId))
@@ -400,9 +397,7 @@ public final class KryonExecutor implements KrystalExecutor {
                   this.executeCommand(
                       new ForwardBatch(
                           kryonId,
-                          kryonDefinition.getOutputLogicDefinition().inputNames().stream()
-                              .filter(s -> !kryonDefinition.dependencyKryons().containsKey(s))
-                              .collect(toImmutableSet()),
+                          kryonDefinition.facetsByType(INPUT),
                           kryonResults.stream()
                               .collect(
                                   toImmutableMap(
@@ -451,7 +446,19 @@ public final class KryonExecutor implements KrystalExecutor {
                     allExecutions.values().stream()
                         .map(getFuture())
                         .toArray(CompletableFuture[]::new))
-                .whenComplete((unused, throwable) -> commandQueueLease.close()));
+                .whenComplete(
+                    (unused, throwable) -> {
+                      for (Map.Entry<String, Map<String, OutputLogicDecorator>> decoratorsDetails :
+                          requestScopedMainDecorators.entrySet()) {
+                        Map<String, OutputLogicDecorator> decoratorsDetailsValue =
+                            decoratorsDetails.getValue();
+                        for (Map.Entry<String, OutputLogicDecorator> decorator :
+                            decoratorsDetailsValue.entrySet()) {
+                          decorator.getValue().onComplete();
+                        }
+                      }
+                      commandQueueLease.close();
+                    }));
   }
 
   private static Function<KryonExecution, CompletableFuture<@Nullable Object>> getFuture() {

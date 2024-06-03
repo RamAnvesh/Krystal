@@ -100,4 +100,10 @@ public final class Util {
             graph.getExecutorPool().peakAvgActiveLeasesPerObject(),
             graph.getExecutorPool().maxPoolSize());
   }
+
+  public static VajramKryonGraph.Builder loadFromClasspath(String... packagePrefixes) {
+    VajramKryonGraph.Builder builder = VajramKryonGraph.builder();
+    stream(packagePrefixes).forEach(builder::loadFromPackage);
+    return builder;
+  }
 }

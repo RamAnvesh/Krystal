@@ -1,7 +1,7 @@
 package com.flipkart.krystal.vajram.codegen;
 
 import static com.flipkart.krystal.vajram.VajramID.vajramID;
-import static com.flipkart.krystal.vajram.codegen.Constants.BATCHABLE_INPUTS;
+import static com.flipkart.krystal.vajram.codegen.Constants.BATCHABLE_FACETS;
 import static com.flipkart.krystal.vajram.codegen.Constants.COMMON_FACETS;
 import static com.flipkart.krystal.vajram.codegen.Constants.FACETS_CLASS_SUFFIX;
 import static com.flipkart.krystal.vajram.codegen.DeclaredTypeVisitor.isOptional;
@@ -13,6 +13,7 @@ import com.flipkart.krystal.vajram.Generated;
 import com.flipkart.krystal.vajram.Input;
 import com.flipkart.krystal.vajram.Vajram;
 import com.flipkart.krystal.vajram.VajramDef;
+import com.flipkart.krystal.vajram.VajramDefinitionException;
 import com.flipkart.krystal.vajram.VajramID;
 import com.flipkart.krystal.vajram.VajramRequest;
 import com.flipkart.krystal.vajram.batching.Batch;
@@ -49,7 +50,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
-import javax.annotation.processing.FilerException;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.element.Element;
@@ -79,7 +79,7 @@ public class Utils {
   public static final String REQUEST_SUFFIX = "Request";
   public static final String IMPL = "Impl";
   public static final String FACET_UTIL = "FacetUtil";
-  public static final String CONVERTER = "CONVERTER";
+  public static final String CONVERTER = "BATCH_CONVERTER";
 
   @Getter private final ProcessingEnvironment processingEnv;
   private final Types typeUtils;
@@ -118,12 +118,6 @@ public class Utils {
       try (PrintWriter out = new PrintWriter(requestFile.openWriter())) {
         out.println(code);
       }
-    } catch (FilerException e) {
-      // Since we do multiple passes (codeGenVajramModels, and compileJava) where this annotation
-      // processor is executed, we might end up creating the same file multiple times. This is not
-      // an error, hence we ignore this exceeption
-      //      note("Could not create source file for %s. Due to exception %s".formatted(className,
-      // e));
     } catch (Exception e) {
       error(
           "Error creating java file for className: %s. Error: %s".formatted(className, e),
@@ -166,11 +160,13 @@ public class Utils {
                       InputModelBuilder<Object> inputBuilder =
                           InputModel.builder().facetField(inputField);
                       inputBuilder.name(inputField.getSimpleName().toString());
+                      inputBuilder.documentation(
+                          Optional.ofNullable(elementUtils.getDocComment(inputField)).orElse(""));
                       inputBuilder.isMandatory(!isOptional(inputField.asType(), processingEnv));
-                      DataType<?> dataType =
+                      DataType<Object> dataType =
                           inputField
                               .asType()
-                              .accept(new DeclaredTypeVisitor(this, true, inputField), null);
+                              .accept(new DeclaredTypeVisitor<>(this, true, inputField), null);
                       inputBuilder.type(dataType);
                       inputBuilder.isBatched(
                           Optional.ofNullable(inputField.getAnnotation(Batch.class)).isPresent());
@@ -206,20 +202,14 @@ public class Utils {
                 typeMirror ->
                     !((QualifiedNameable) typeUtils.asElement(typeMirror))
                         .getQualifiedName()
-                        .equals(
-                            elementUtils
-                                .getTypeElement(VajramRequest.class.getName())
-                                .getQualifiedName()));
+                        .equals(getTypeElement(VajramRequest.class.getName()).getQualifiedName()));
     Optional<TypeMirror> vajramType =
         getTypeFromAnnotationMember(dependency::onVajram)
             .filter(
                 typeMirror ->
                     !((QualifiedNameable) typeUtils.asElement(typeMirror))
                         .getQualifiedName()
-                        .equals(
-                            elementUtils
-                                .getTypeElement(Vajram.class.getName())
-                                .getQualifiedName()));
+                        .equals(getTypeElement(Vajram.class.getName()).getQualifiedName()));
     TypeMirror vajramOrReqType =
         vajramReqType
             .or(() -> vajramType)
@@ -229,8 +219,9 @@ public class Utils {
                       "At least one of `onVajram` or `withVajramReq` is needed in dependency declaration '%s' of vajram '%s'"
                           .formatted(depField.getSimpleName(), vajramId),
                       depField);
-                  return new RuntimeException("Invalid Dependency specification");
+                  return new VajramDefinitionException("Invalid Dependency specification");
                 });
+    depBuilder.documentation(Optional.ofNullable(elementUtils.getDocComment(depField)).orElse(""));
     if (vajramReqType.isPresent() && vajramType.isPresent()) {
       error(
           ("Both `withVajramReq` and `onVajram` cannot be set."
@@ -240,7 +231,7 @@ public class Utils {
           depField);
     } else {
       DataType<?> declaredDataType =
-          new DeclaredTypeVisitor(this, true, depField).visit(depField.asType());
+          new DeclaredTypeVisitor<>(this, true, depField).visit(depField.asType());
       TypeElement vajramOrReqElement =
           (TypeElement) processingEnv.getTypeUtils().asElement(vajramOrReqType);
       VajramInfoLite depVajramId = getVajramInfoLite(vajramOrReqElement);
@@ -262,7 +253,15 @@ public class Utils {
                 + " Found withVajramReq=%s and onVajram=%s")
             .formatted(depField.getSimpleName(), vajramId, vajramReqType.get(), vajramType.get()),
         depField);
-    throw new RuntimeException("Invalid Dependency specification");
+    throw new VajramDefinitionException("Invalid Dependency specification");
+  }
+
+  TypeElement getTypeElement(String name) {
+    return Optional.ofNullable(elementUtils.getTypeElement(name))
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "Could not find type element with name %s".formatted(name)));
   }
 
   private VajramInfoLite getVajramInfoLite(TypeElement vajramOrReqClass) {
@@ -273,7 +272,7 @@ public class Utils {
       return new VajramInfoLite(
           vajramClassSimpleName.substring(
               0, vajramClassSimpleName.length() - REQUEST_SUFFIX.length()),
-          new DeclaredTypeVisitor(this, false, responseTypeElement).visit(responseType));
+          new DeclaredTypeVisitor<>(this, false, responseTypeElement).visit(responseType));
     } else if (isRawAssignable(vajramOrReqClass.asType(), Vajram.class)) {
       TypeMirror responseType = getResponseType(vajramOrReqClass, Vajram.class);
       TypeElement responseTypeElement = (TypeElement) typeUtils.asElement(responseType);
@@ -285,7 +284,7 @@ public class Utils {
       }
       return new VajramInfoLite(
           vajramClassSimpleName,
-          new DeclaredTypeVisitor(this, false, responseTypeElement).visit(responseType));
+          new DeclaredTypeVisitor<>(this, false, responseTypeElement).visit(responseType));
     } else {
       throw new IllegalArgumentException(
           "Unknown class hierarchy of vajram class %s. Expected %s or %s"
@@ -305,7 +304,7 @@ public class Utils {
 
   private Optional<TypeMirror> getTypeFromAnnotationMember(Supplier<Class<?>> runnable) {
     try {
-      runnable.get();
+      var ignored = runnable.get();
       throw new AssertionError();
     } catch (MirroredTypeException mte) {
       return Optional.ofNullable(mte.getTypeMirror());
@@ -375,8 +374,13 @@ public class Utils {
   }
 
   private String getTimestamp() {
+    String ist = "IST";
     return DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(
-        Clock.systemDefaultZone().instant().atZone(ZoneId.systemDefault()));
+        Clock.system(
+                ZoneId.of(
+                    Optional.ofNullable(ZoneId.SHORT_IDS.get(ist))
+                        .orElseThrow(() -> new IllegalStateException("Could not find Zone" + ist))))
+            .instant());
   }
 
   public static String getFacetUtilClassName(String vajramName) {
@@ -399,8 +403,8 @@ public class Utils {
     return vajramName + COMMON_FACETS;
   }
 
-  public static String getBatchedInputsClassname(String vajramName) {
-    return vajramName + BATCHABLE_INPUTS;
+  public static String getBatchedFacetsClassname(String vajramName) {
+    return vajramName + BATCHABLE_FACETS;
   }
 
   public static TypeName getMethodReturnType(Method method) {
@@ -447,13 +451,12 @@ public class Utils {
   }
 
   /**
-   * @return true of the raw type (without generics) of {@code from} can be assigned to the raw type
-   *     of {@code to}
+   * Return true if the raw type (without generics) of {@code from} can be assigned to the raw type
+   * of {@code to}
    */
   public boolean isRawAssignable(TypeMirror from, Class<?> to) {
     return typeUtils.isAssignable(
-        typeUtils.erasure(from),
-        typeUtils.erasure(elementUtils.getTypeElement(to.getName()).asType()));
+        typeUtils.erasure(from), typeUtils.erasure(getTypeElement(to.getName()).asType()));
   }
 
   public TypeMirror box(TypeMirror type) {
