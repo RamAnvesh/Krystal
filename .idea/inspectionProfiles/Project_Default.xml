@@ -571,6 +571,7 @@
           <option value="initialization.field.uninitialized" />
           <option value="AssertBetweenInconvertibleTypes" />
           <option value="ProhibitedExceptionThrown" />
+          <option value="ConstantValue" />
         </list>
       </option>
     </inspection_tool>

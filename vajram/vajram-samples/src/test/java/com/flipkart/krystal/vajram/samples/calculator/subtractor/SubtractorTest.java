@@ -1,6 +1,7 @@
 package com.flipkart.krystal.vajram.samples.calculator.subtractor;
 
 import static com.flipkart.krystal.vajram.VajramID.ofVajram;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.flipkart.krystal.vajramexecutor.krystex.KrystexVajramExecutor;
 import com.flipkart.krystal.vajramexecutor.krystex.KrystexVajramExecutorConfig;
@@ -25,6 +26,6 @@ class SubtractorTest {
               ofVajram(Subtractor.class),
               SubtractorRequest.builder().numberOne(5).numberTwo(7).build());
     }
-    Assertions.assertThat(future).succeedsWithin(1, TimeUnit.SECONDS).isEqualTo(-2);
+    assertThat(future).succeedsWithin(1, TimeUnit.SECONDS).isEqualTo(-2);
   }
 }

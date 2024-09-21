@@ -4,7 +4,7 @@ string sayHelloToFriends(
     string userId,
     int? numberOfFriends){
 
-  @dep UserInfo userInfo = getUserInfo(userId = userId)
+  @dep UserInfo userInfo = getUserInfo(userId = userId.trim())
 
   @dep UserInfo* friendsInfos = getUserInfo(
       userId =*
