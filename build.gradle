@@ -104,6 +104,8 @@ configure(subprojects.findAll { it.name != 'krystal-bom' && it.name != "code-cov
     }
 
     java {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
         withSourcesJar()
     }
 
