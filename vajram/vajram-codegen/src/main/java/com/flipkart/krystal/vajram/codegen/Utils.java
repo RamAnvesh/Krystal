@@ -485,6 +485,7 @@ public class Utils {
 
   private Optional<TypeMirror> getTypeFromAnnotationMember(Supplier<Class<?>> runnable) {
     try {
+      @SuppressWarnings("unused")
       var ignored = runnable.get();
       throw new AssertionError();
     } catch (MirroredTypeException mte) {
