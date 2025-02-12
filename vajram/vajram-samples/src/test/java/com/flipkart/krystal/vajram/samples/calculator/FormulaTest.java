@@ -168,9 +168,9 @@ class FormulaTest {
    * (Ex: https://github.com/flipkart-incubator/Krystal/issues/328)
    */
   @ParameterizedTest
-  @ValueSource(ints = {1, 2, 4}) // test with different values of parallelism
+  @ValueSource(ints = {1, 2, 4, 8}) // test with different values of parallelism
   void parallelExecuteVajrams_success(int executorCount) throws Exception {
-    int loopCount = 100;
+    int loopCount = 200;
     SingleThreadExecutor[] executors = getExecutors(executorCount);
     VajramKryonGraph graph = this.graph.build();
     CompletableFuture<?>[] submissionFutures = new CompletableFuture[executorCount];
