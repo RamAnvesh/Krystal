@@ -1,5 +1,8 @@
 package com.flipkart.krystal.vajram.graphql.codegen;
 
+import static com.flipkart.krystal.vajram.graphql.api.AbstractGraphQLEntity.DEFAULT_ENTITY_ID_FIELD;
+import static com.flipkart.krystal.vajram.graphql.codegen.SchemaReaderUtil.entityIdClassName;
+import static com.flipkart.krystal.vajram.graphql.codegen.SchemaReaderUtil.getDirectiveArgumentString;
 import static javax.lang.model.element.Modifier.FINAL;
 import static javax.lang.model.element.Modifier.PRIVATE;
 import static javax.lang.model.element.Modifier.PUBLIC;
@@ -50,8 +53,7 @@ class GraphQLEntityModelGen implements CodeGenerator {
       ClassName entityClassName =
           ClassName.get(
               schemaReaderUtil.getPackageNameForType(graphQLTypeName), typeDefinition.getName());
-      ClassName entityIdClassName =
-          ClassName.get(entityClassName.packageName(), entityClassName.simpleName() + "Id");
+      ClassName entityIdClassName = entityIdClassName(entityClassName);
 
       TypeSpec typeSpec;
       if (typeDefinition instanceof EnumTypeDefinition) {
@@ -68,16 +70,20 @@ class GraphQLEntityModelGen implements CodeGenerator {
       } else if (typeDefinition instanceof ObjectTypeDefinition) {
         List<MethodSpec> methodSpecs = new ArrayList<>();
         boolean isEntity = typeDefinition.getDirectivesByName().containsKey("entity");
+        String entityIdentifierKey =
+            getDirectiveArgumentString(typeDefinition, "entity", "identifierKey")
+                .orElse(DEFAULT_ENTITY_ID_FIELD);
+
         boolean idMissing = true;
         if (typeDefinition.getChildren() != null) {
           for (int i = 0; i < typeDefinition.getChildren().size(); i++) {
             if (typeDefinition.getChildren().get(i) instanceof FieldDefinition fieldDefinition) {
               String fieldName = fieldDefinition.getName();
-              if (isEntity && "id".equals(fieldName)) {
+              if (isEntity && entityIdentifierKey.equals(fieldName)) {
                 idMissing = false;
-                continue;
               }
-              final TypeName fieldTypeName = schemaReaderUtil.getFieldType(fieldDefinition);
+              final TypeName fieldTypeName =
+                  schemaReaderUtil.getFieldType(fieldDefinition).genericType();
               fieldToClass.put(fieldName, fieldTypeName);
               boolean isListType = fieldDefinition.getType() instanceof ListType;
 
@@ -169,18 +175,18 @@ class GraphQLEntityModelGen implements CodeGenerator {
                   util.classBuilder(entityIdClassName.simpleName(), entityClassName.canonicalName())
                       .addModifiers(PUBLIC)
                       .addSuperinterface(GraphQLEntityId.class)
-                      .addField(String.class, "id", PRIVATE, FINAL)
+                      .addField(String.class, "value", PRIVATE, FINAL)
                       .addMethod(
-                          MethodSpec.methodBuilder("id")
+                          MethodSpec.methodBuilder("value")
                               .addModifiers(PUBLIC)
                               .returns(String.class)
-                              .addStatement("return id")
+                              .addStatement("return value")
                               .build())
                       .addMethod(
                           MethodSpec.constructorBuilder()
                               .addModifiers(PUBLIC)
-                              .addParameter(String.class, "id")
-                              .addStatement("this.id = id")
+                              .addParameter(String.class, "value")
+                              .addStatement("this.value = value")
                               .build())
                       .build())
               .build()

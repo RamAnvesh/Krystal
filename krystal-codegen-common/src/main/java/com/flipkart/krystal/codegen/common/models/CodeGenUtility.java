@@ -320,7 +320,7 @@ public class CodeGenUtility {
               .createSourceFile(
                   canonicalClassName,
                   Optional.ofNullable(originatingElement).stream().toArray(Element[]::new));
-      note("Successfully Create source file %s".formatted(canonicalClassName));
+      note("Successfully created source file %s".formatted(canonicalClassName));
       try (PrintWriter out = new PrintWriter(requestFile.openWriter())) {
         out.println(code);
       }

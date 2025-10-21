@@ -3,9 +3,11 @@ package com.flipkart.krystal.vajram.graphql.codegen;
 import static java.util.Objects.requireNonNullElse;
 
 import com.flipkart.krystal.codegen.common.models.CodeGenUtility;
+import com.flipkart.krystal.vajram.graphql.codegen.GraphQlFieldSpec.FieldType;
+import com.flipkart.krystal.vajram.graphql.codegen.GraphQlFieldSpec.ListFieldType;
+import com.flipkart.krystal.vajram.graphql.codegen.GraphQlFieldSpec.SingleFieldType;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.ParameterizedTypeName;
-import com.squareup.javapoet.TypeName;
 import graphql.language.Argument;
 import graphql.language.Directive;
 import graphql.language.DirectivesContainer;
@@ -43,10 +45,12 @@ public class SchemaReaderUtil {
   public static final String GRAPHQL_AGGREGATOR = "GraphQLAggregator";
   public static final String GRAPHQL_SCHEMA_EXTENSION = ".graphqls";
 
-  static final Map<GraphQLTypeName, Map<GraphQlFieldSpec, ClassName>> entityTypeToReferenceFetcher =
+  static final Map<GraphQLTypeName, Map<GraphQlFieldSpec, ClassName>>
+      entityTypeToFieldToTypeAggregator = new HashMap<>();
+  static final Map<GraphQLTypeName, Map<GraphQlFieldSpec, ClassName>> entityTypeToFieldToFetcher =
       new HashMap<>();
   static final Map<GraphQLTypeName, Map<ClassName, List<GraphQlFieldSpec>>>
-      reverseEntityTypeToFieldResolverMap = new HashMap<>();
+      entityTypeToFetcherToFields = new HashMap<>();
 
   @Getter private final String rootPackageName;
   @Getter private final TypeDefinitionRegistry typeDefinitionRegistry;
@@ -116,6 +120,12 @@ public class SchemaReaderUtil {
     return ((StringValue) rootPackage.getArgument("name").getValue()).getValue();
   }
 
+  static ClassName entityIdClassName(ClassName entityClassName) {
+    ClassName entityIdClassName =
+        ClassName.get(entityClassName.packageName(), entityClassName.simpleName() + "Id");
+    return entityIdClassName;
+  }
+
   public GraphQlFieldSpec fieldSpecFromField(
       FieldDefinition fieldDefinition, String nestingPrefix) {
     return GraphQlFieldSpec.builder()
@@ -132,43 +142,48 @@ public class SchemaReaderUtil {
 
     for (Map.Entry<GraphQLTypeName, ObjectTypeDefinition> entry :
         entityTypesToDefinition.entrySet()) {
+      GraphQLTypeName entityType = entry.getKey();
+
       ObjectTypeDefinition fieldDefinition = entry.getValue();
       /* This is storing field to resolvers map */
-      Map<GraphQlFieldSpec, ClassName> fieldToResolverMap = new HashMap<>();
+      Map<GraphQlFieldSpec, ClassName> fieldToFetcherMap = new HashMap<>();
       /* This is storing field to reference type aggregator map */
       Map<GraphQlFieldSpec, ClassName> fieldToTypeAggregator = new HashMap<>();
       /* This is storing resolver to field map */
-      Map<ClassName, List<GraphQlFieldSpec>> reverseFieldToResolverMap = new HashMap<>();
+      Map<ClassName, List<GraphQlFieldSpec>> fetcherToFieldsMap = new HashMap<>();
 
       for (FieldDefinition nestedField : fieldDefinition.getFieldDefinitions()) {
         String path = "";
         if (nestedField.hasDirective(DATA_FETCHER)) {
-          fieldToResolverMap.put(
+          fieldToFetcherMap.put(
               fieldSpecFromField(nestedField, ""), getDataFetcherArgs(nestedField));
         } else if (nestedField.hasDirective(REFERENCE_FETCHER)) {
-          fieldToResolverMap.put(
+          fieldToFetcherMap.put(
               fieldSpecFromField(nestedField, ""), getRefFetcherArgs(nestedField));
           ObjectTypeDefinition objectTypeDefinition =
               (ObjectTypeDefinition) typeRegistry.getType(nestedField.getType()).orElseThrow();
           if (objectTypeDefinition.hasDirective("entity")) {
             String packageName = getPackageNameForType(objectTypeDefinition.getName());
             String typeAggregator =
-                getDirectiveArgumentString(objectTypeDefinition, "entity", "name").orElseThrow()
+                getDirectiveArgumentString(objectTypeDefinition, "entity", "name")
+                        .orElse(objectTypeDefinition.getName())
                     + GRAPHQL_AGGREGATOR;
             fieldToTypeAggregator.put(
                 fieldSpecFromField(nestedField, ""), ClassName.get(packageName, typeAggregator));
           }
 
         } else {
-          dfsSchema(nestedField, path, fieldToResolverMap, typeRegistry);
+          dfsSchema(nestedField, path, fieldToFetcherMap, typeRegistry);
         }
       }
 
-      entityTypeToReferenceFetcher.put(entry.getKey(), fieldToTypeAggregator);
-      fieldToResolverMap.forEach(
+      fieldToFetcherMap.forEach(
           (key, value) ->
-              reverseFieldToResolverMap.computeIfAbsent(value, k -> new ArrayList<>()).add(key));
-      reverseEntityTypeToFieldResolverMap.put(entry.getKey(), reverseFieldToResolverMap);
+              fetcherToFieldsMap.computeIfAbsent(value, k -> new ArrayList<>()).add(key));
+
+      entityTypeToFieldToFetcher.put(entityType, fieldToFetcherMap);
+      entityTypeToFetcherToFields.put(entityType, fetcherToFieldsMap);
+      entityTypeToFieldToTypeAggregator.put(entityType, fieldToTypeAggregator);
     }
   }
 
@@ -253,7 +268,7 @@ public class SchemaReaderUtil {
     return entityTypesToDefinition;
   }
 
-  TypeName getFieldType(FieldDefinition field) {
+  FieldType getFieldType(FieldDefinition field) {
     Type<?> type = field.getType();
     String typeName;
     boolean isListType = false;
@@ -262,7 +277,7 @@ public class SchemaReaderUtil {
     if (type instanceof ListType listType) {
       isListType = true;
       //noinspection unchecked
-      typeName = ((NamedNode<graphql.language.TypeName>) (listType).getType()).getName();
+      typeName = ((NamedNode<graphql.language.TypeName>) listType.getType()).getName();
     } else {
       //noinspection unchecked
       typeName = ((NamedNode<graphql.language.TypeName>) type).getName();
@@ -292,16 +307,23 @@ public class SchemaReaderUtil {
               ClassName.get(
                   requireNonNullElse(packageName, getPackageNameForType(typeName)), typeName);
         };
+
     if (isListType) {
-      return ParameterizedTypeName.get(ClassName.get(List.class), fieldTypeClassName);
+      return new ListFieldType(
+          ParameterizedTypeName.get(ClassName.get(List.class), fieldTypeClassName),
+          fieldTypeClassName);
     } else {
-      return fieldTypeClassName;
+      return new SingleFieldType(fieldTypeClassName);
     }
   }
 
   static Optional<String> getDirectiveArgumentString(
       DirectivesContainer<?> element, String directiveName, String argName) {
-    Argument argument = element.getDirectives(directiveName).get(0).getArgument(argName);
+    List<Directive> directives = element.getDirectives(directiveName);
+    if (directives.isEmpty()) {
+      return Optional.empty();
+    }
+    Argument argument = directives.get(0).getArgument(argName);
     return argument == null
         ? Optional.empty()
         : Optional.ofNullable((StringValue) argument.getValue()).map(StringValue::getValue);
