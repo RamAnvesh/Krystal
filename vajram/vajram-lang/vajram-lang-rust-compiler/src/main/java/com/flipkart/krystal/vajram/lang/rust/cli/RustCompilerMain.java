@@ -100,7 +100,7 @@ public final class RustCompilerMain {
     }
 
     Files.createDirectories(outDir);
-    RustEmitter emitter = new RustEmitter(symbolTable);
+    RustEmitter emitter = new RustEmitter(symbolTable, target);
     ModuleTree moduleTree = new ModuleTree();
     Map<Path, List<VajramFile>> filesBySource = new LinkedHashMap<>();
     for (VajramFile file : files) {

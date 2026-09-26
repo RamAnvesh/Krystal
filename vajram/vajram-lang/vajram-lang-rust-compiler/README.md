@@ -64,6 +64,8 @@ It writes `main.rs`, which accepts a Vajram name as its first argument, dispatch
 
 `concatStrings(strings = values, separator = separator)` is a built-in now Vajram imported from `lang.Strings`. It joins an ordered array of strings into one `string`, inserting `separator` between adjacent values.
 
+`callHttp(url = requestUrl)` is a built-in soon Vajram imported from `lang.net`, supported on both targets. On the native target it issues a non-blocking HTTP GET using `reqwest`; generated Cargo crates need the `reqwest` crate (default features, which pull in Tokio). On the wasm target it lowers to the bundled `vajram_rt::fetch_text` helper, which drives the browser's `fetch` API through `wasm-bindgen`/`web-sys` instead of Tokio; generated wasm crates need the `web-sys` crate with the `Request`, `RequestInit`, `RequestMode`, `Response`, and `Window` features enabled. Either way it returns the response body decoded as a `string`, and request or decoding failures terminate the non-errable invocation with an error.
+
 ## Vajram Injection
 1. For every vajram which has injections defined, a struct called <Vajram>_Injections is generated where each injectable value has one corresponding field in the struct - the field type is `Provider<T>` where T is the type of the injection facet.
 2. All rust functions compiled from vajrams accept a Context object. This Context object has an "Injector" instance which can retrieved by calling `injector()` method on the Context object.

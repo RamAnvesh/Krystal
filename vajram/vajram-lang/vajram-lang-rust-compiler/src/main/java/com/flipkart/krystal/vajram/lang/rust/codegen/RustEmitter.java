@@ -11,6 +11,7 @@ import com.flipkart.krystal.vajram.lang.rust.ast.InputDecl;
 import com.flipkart.krystal.vajram.lang.rust.ast.OutputBlock;
 import com.flipkart.krystal.vajram.lang.rust.ast.VajramDef;
 import com.flipkart.krystal.vajram.lang.rust.ast.VajramFile;
+import com.flipkart.krystal.vajram.lang.rust.cli.RustCompilerMain.Target;
 import com.flipkart.krystal.vajram.lang.rust.resolve.SymbolTable;
 import com.flipkart.krystal.vajram.lang.rust.system.SystemVajram;
 import java.util.ArrayList;
@@ -29,10 +30,16 @@ import org.jspecify.annotations.Nullable;
 public final class RustEmitter {
 
   private final SymbolTable symbolTable;
+  private final Target target;
   private VajramFile currentFile;
 
   public RustEmitter(SymbolTable symbolTable) {
+    this(symbolTable, Target.NATIVE);
+  }
+
+  public RustEmitter(SymbolTable symbolTable, Target target) {
     this.symbolTable = symbolTable;
+    this.target = target;
   }
 
   public String emit(List<VajramFile> files) {
@@ -320,6 +327,7 @@ public final class RustEmitter {
       return switch (systemVajram.get()) {
         case READ_FILE_AS_STRING -> emitReadFileAsString(invocation, exprs);
         case CONCAT_STRINGS -> emitConcatStrings(invocation, exprs);
+        case CALL_HTTP -> emitCallHttp(invocation, exprs);
       };
     }
 
@@ -414,13 +422,35 @@ public final class RustEmitter {
           && "path".equals(stat.targetInputs().get(0))
           && stat.values().size() == 1) {
         String path = exprs.emit(stat.values().get(0));
-        return "tokio::fs::read_to_string("
+        return "Rc::new(tokio::fs::read_to_string("
             + path
             + ".as_str()"
-            + ").await.expect(\"readFileAsString failed\")";
+            + ").await.expect(\"readFileAsString failed\"))";
       }
     }
     throw new IllegalArgumentException("readFileAsString requires exactly one path resolver");
+  }
+
+  private String emitCallHttp(DependencyInvocation invocation, ExprEmitter exprs) {
+    for (DepInputResolver resolver : invocation.resolvers()) {
+      if (resolver instanceof DepInputResolver.Stat stat
+          && stat.targetInputs().size() == 1
+          && "url".equals(stat.targetInputs().get(0))
+          && stat.values().size() == 1) {
+        String url = exprs.emit(stat.values().get(0)) + ".as_str()";
+        String body =
+            target == Target.WASM
+                ? "crate::vajram_rt::fetch_text(" + url + ").await"
+                // Some hosts (e.g. api.weather.gov's Akamai edge) reject requests with no
+                // User-Agent header ("Access Denied"), unlike browsers which always send one.
+                : "reqwest::Client::new().get("
+                    + url
+                    + ").header(reqwest::header::USER_AGENT, \"vajram-lang\")"
+                    + ".send().await.expect(\"callHttp failed\").text().await.expect(\"callHttp failed\")";
+        return "Rc::new(" + body + ")";
+      }
+    }
+    throw new IllegalArgumentException("callHttp requires exactly one url resolver");
   }
 
   private String emitConcatStrings(DependencyInvocation invocation, ExprEmitter exprs) {

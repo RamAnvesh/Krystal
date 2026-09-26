@@ -114,3 +114,30 @@ pub fn spawn_local_shared<T: Clone + 'static>(
     });
     shared
 }
+
+/// Non-blocking HTTP GET for `lang.net.callHttp` on the wasm target, backed by the browser's
+/// `fetch` API. Requires the `web_sys` crate with the `Request`, `RequestInit`, `RequestMode`,
+/// `Response`, and `Window` features enabled.
+pub async fn fetch_text(url: &str) -> String {
+    use wasm_bindgen::JsCast;
+    use wasm_bindgen_futures::JsFuture;
+    use web_sys::{Request, RequestInit, RequestMode, Response};
+
+    let opts = RequestInit::new();
+    opts.set_method("GET");
+    opts.set_mode(RequestMode::Cors);
+    let request =
+        Request::new_with_str_and_init(url, &opts).expect("callHttp failed to build request");
+
+    let window = web_sys::window().expect("callHttp requires a browser window global");
+    let response_value = JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .expect("callHttp failed");
+    let response: Response = response_value
+        .dyn_into()
+        .expect("callHttp received a non-Response value");
+    let text_value = JsFuture::from(response.text().expect("callHttp failed to read response body"))
+        .await
+        .expect("callHttp failed");
+    text_value.as_string().expect("callHttp response body was not a string")
+}

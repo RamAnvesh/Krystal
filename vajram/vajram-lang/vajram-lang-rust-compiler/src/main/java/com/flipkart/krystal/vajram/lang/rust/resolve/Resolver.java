@@ -95,7 +95,8 @@ public final class Resolver {
               invocation.location(),
               "System Vajram '"
                   + invocation.vajramName()
-                  + "' is not supported for the wasm target: browser file-picker support is not bundled");
+                  + "' is not supported for the wasm target: "
+                  + systemVajram.get().unsupportedTargetReason());
         }
         return;
       }

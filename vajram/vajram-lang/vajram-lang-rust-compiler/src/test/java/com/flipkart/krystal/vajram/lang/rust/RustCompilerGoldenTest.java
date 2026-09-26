@@ -405,6 +405,55 @@ class RustCompilerGoldenTest {
   }
 
   @Test
+  void lowersCallHttpToReqwestNonBlockingGet(@TempDir Path tempDir) throws IOException {
+    Path sourceDir = tempDir.resolve("vajram");
+    Path outDir = tempDir.resolve("out");
+    Files.createDirectories(sourceDir);
+    Files.writeString(
+        sourceDir.resolve("fetcher.vajram"),
+        """
+        package system;
+        import vajram callHttp from lang.net;
+        vajram fetcher(string requestUrl) out string~ permit callers public {
+          string body = callHttp(url = requestUrl);
+          out ~ { body }
+        }
+        """);
+
+    assertThat(RustCompilerMain.compile(sourceDir, outDir)).isTrue();
+    String fetcher = Files.readString(outDir.resolve("system/fetcher.rs"));
+    assertThat(fetcher)
+        .contains("reqwest::Client::new()")
+        .contains(".get(_body_inputs.requestUrl.as_str())")
+        .contains(".header(reqwest::header::USER_AGENT,");
+    assertThat(fetcher).contains(".text()").contains(".expect(\"callHttp failed\")");
+    assertThat(fetcher).contains("crate::vajram_rt::spawn_local_shared(async move");
+  }
+
+  @Test
+  void lowersCallHttpToBrowserFetchOnWasmTarget(@TempDir Path tempDir) throws IOException {
+    Path sourceDir = tempDir.resolve("vajram");
+    Path outDir = tempDir.resolve("out");
+    Files.createDirectories(sourceDir);
+    Files.writeString(
+        sourceDir.resolve("fetcher.vajram"),
+        """
+        package system;
+        import vajram callHttp from lang.net;
+        vajram fetcher(string requestUrl) out string~ permit callers public {
+          string body = callHttp(url = requestUrl);
+          out ~ { body }
+        }
+        """);
+
+    assertThat(RustCompilerMain.compile(sourceDir, outDir, RustCompilerMain.Target.WASM)).isTrue();
+    String fetcher = Files.readString(outDir.resolve("system/fetcher.rs"));
+    assertThat(fetcher)
+        .contains("crate::vajram_rt::fetch_text(_body_inputs.requestUrl.as_str())")
+        .contains(".await");
+  }
+
+  @Test
   void rejectsReadFileAsStringForWasmWithoutEmittingTokioFilesystemIo(@TempDir Path tempDir)
       throws IOException {
     Path sourceDir = tempDir.resolve("vajram");
