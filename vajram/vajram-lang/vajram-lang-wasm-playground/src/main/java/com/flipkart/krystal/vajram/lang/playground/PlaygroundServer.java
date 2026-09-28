@@ -211,6 +211,7 @@ public final class PlaygroundServer {
         wasm-bindgen = "0.2"
         wasm-bindgen-futures = "0.4"
         web-sys = { version = "0.3", features = ["Request", "RequestInit", "RequestMode", "Response", "Window"] }
+        bumpalo = "3"
         """;
   }
 

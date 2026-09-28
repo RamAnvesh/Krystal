@@ -14,7 +14,7 @@ vajram_def : annotation* VAJRAM ID inputs_decl output_decl injection_decl? permi
 
 package_decl: annotation* PACKAGE qualifiedName SEMI;
 
-imports_decl: IMPORT (VAJRAM | TYPE) ID FROM qualifiedName ('.' '*')? SEMI;
+imports_decl: IMPORT (VAJRAM | TYPE | BACKTICK TYPE) ID FROM qualifiedName ('.' '*')? SEMI;
 
 qualifiedName: ID ('.' ID)*;
 
@@ -52,7 +52,7 @@ injections_list : ( annotation* injection_id_declaration COMMA)* ( annotation* i
 
 grouper: SPECIAL ID;
 
-annotation: '`' ID annotation_param_list?;
+annotation: BACKTICK ID annotation_param_list?;
 
 annotation_param_list : '(' ((annotation_arg COMMA)* annotation_arg COMMA?)? ')' ;
 
@@ -154,6 +154,7 @@ ERRABLE: '?';
 SOON : '~';
 LATER : '~~';
 DOT: '.';
+BACKTICK: '`';
 
 NUM_LITERAL : [0-9]+ ;
 TRUE : 'true' ;

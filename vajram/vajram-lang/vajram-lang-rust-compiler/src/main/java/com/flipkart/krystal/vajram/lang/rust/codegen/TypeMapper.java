@@ -56,10 +56,22 @@ public final class TypeMapper {
   }
 
   /**
-   * Every value that crosses a generated Vajram boundary uses shared, local-task-safe ownership.
+   * Every value that crosses a generated Vajram boundary (by default) is borrowed out of the
+   * caller-supplied output arena: a reference tied to that call's {@code 'a} lifetime, not a
+   * refcounted handle. See {@link #toRustLocalType(TypeRef)} for the {@code `local} facet case,
+   * which is a plain owned value instead.
    */
   public static String toRustOwnedType(TypeRef type) {
-    return "Rc<" + toRustValueType(type) + ">";
+    return "&'a " + toRustValueType(type);
+  }
+
+  /**
+   * A {@code `local} facet's value never crosses this Vajram's own boundary, so it is just a plain
+   * owned Rust value - freed by ordinary scope/drop rules when {@code call_one} returns, no arena
+   * or reference involved.
+   */
+  public static String toRustLocalType(TypeRef type) {
+    return toRustValueType(type);
   }
 
   public static String toRustReturnType(TypeRef type) {

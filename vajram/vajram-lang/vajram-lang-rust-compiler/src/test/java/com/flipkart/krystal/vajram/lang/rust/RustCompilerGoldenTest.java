@@ -71,10 +71,12 @@ class RustCompilerGoldenTest {
 
   @Test
   void emittedRustPassesRustcSyntaxCheckWhenAvailable(@TempDir Path tempDir) throws Exception {
-    Assumptions.assumeTrue(commandAvailable("rustc"), "rustc is not available on PATH");
+    // A real `cargo build` (rather than a bare `rustc` invocation) since the generated crate now
+    // depends on the `bumpalo` arena crate for its output arena.
+    Assumptions.assumeTrue(commandAvailable("cargo"), "cargo is not available on PATH");
     Assumptions.assumeTrue(supportsRust2024(), "rustc does not support the Rust 2024 edition");
+    Path cargoDir = tempDir.resolve("cargo");
     Path sourceDir = tempDir.resolve("vajram");
-    Path outDir = tempDir.resolve("out");
     Files.createDirectories(sourceDir);
     Files.writeString(
         sourceDir.resolve("hello.vajram"),
@@ -85,18 +87,25 @@ class RustCompilerGoldenTest {
         }
         """);
 
-    assertThat(RustCompilerMain.compile(sourceDir, outDir)).isTrue();
+    assertThat(RustCompilerMain.compile(sourceDir, cargoDir.resolve("src"))).isTrue();
+    Files.writeString(
+        cargoDir.resolve("Cargo.toml"),
+        """
+        [package]
+        name = "smoke"
+        version = "0.1.0"
+        edition = "2024"
+
+        [dependencies]
+        futures = "0.3"
+        tokio = { version = "1", features = ["rt", "fs"] }
+        reqwest = "0.12"
+        bumpalo = "3"
+        """);
+
     Process process =
-        new ProcessBuilder(
-                "rustc",
-                "--edition",
-                "2024",
-                "--crate-type",
-                "lib",
-                "lib.rs",
-                "--out-dir",
-                outDir.resolve("target").toString())
-            .directory(outDir.toFile())
+        new ProcessBuilder("cargo", "build")
+            .directory(cargoDir.toFile())
             .redirectErrorStream(true)
             .start();
     String output = new String(process.getInputStream().readAllBytes());
@@ -127,8 +136,8 @@ class RustCompilerGoldenTest {
     assertThat(RustCompilerMain.compile(sourceDir, outDir)).isTrue();
     String caller = Files.readString(outDir.resolve("lifecycle/caller.rs"));
     assertThat(caller).contains("pub async fn call");
-    assertThat(caller).contains("crate::vajram_rt::spawn_local_shared(async move");
-    assertThat(caller).contains("value.clone().await");
+    assertThat(caller).contains("let value_fut = async {");
+    assertThat(caller).contains("let value = value_fut.await;");
   }
 
   @Test
@@ -189,12 +198,11 @@ class RustCompilerGoldenTest {
         .contains("use wasm_bindgen::prelude::*;")
         .contains("#[wasm_bindgen]")
         .contains("pub fn outside_process_greet(name: String, count: i64) -> String")
-        .contains("name: Rc::new(name)")
-        .contains("count: Rc::new(count)");
+        .contains("name: arena.alloc(name)")
+        .contains("count: arena.alloc(count)");
     assertThat(Files.readString(outDir.resolve("vajram_rt/mod.rs")))
         .contains("WASM prelude")
-        .contains("wasm_bindgen_futures::spawn_local")
-        .contains("future.shared()")
+        .contains("wasm_bindgen_futures::JsFuture")
         .doesNotContain("tokio::")
         .doesNotContain("every generated crate's");
   }
@@ -301,9 +309,9 @@ class RustCompilerGoldenTest {
         .contains("prefix: Rc<dyn crate::vajram_rt::Provider<String>>")
         .contains("InjectionKey::new(\"string\", &[])")
         .contains("fn instance<I: crate::vajram_rt::Injector + 'static>")
-        .contains("let deps = Leaf_Injections::instance(Rc::clone(&context));")
+        .contains("let deps = Leaf_Injections::instance(context);")
         .contains("::leaf::call(")
-        .contains("Rc::clone(&context)")
+        .contains(", arena, context)")
         .contains("deps.prefix.get()");
   }
 
@@ -400,8 +408,8 @@ class RustCompilerGoldenTest {
 
     assertThat(RustCompilerMain.compile(sourceDir, outDir)).isTrue();
     String reader = Files.readString(outDir.resolve("system/reader.rs"));
-    assertThat(reader).contains("tokio::fs::read_to_string(_content_inputs.filePath.as_str())");
-    assertThat(reader).contains("crate::vajram_rt::spawn_local_shared(async move");
+    assertThat(reader).contains("tokio::fs::read_to_string(inputs.filePath.as_str())");
+    assertThat(reader).contains("let content_fut = async {");
   }
 
   @Test
@@ -424,10 +432,10 @@ class RustCompilerGoldenTest {
     String fetcher = Files.readString(outDir.resolve("system/fetcher.rs"));
     assertThat(fetcher)
         .contains("reqwest::Client::new()")
-        .contains(".get(_body_inputs.requestUrl.as_str())")
+        .contains(".get(inputs.requestUrl.as_str())")
         .contains(".header(reqwest::header::USER_AGENT,");
     assertThat(fetcher).contains(".text()").contains(".expect(\"callHttp failed\")");
-    assertThat(fetcher).contains("crate::vajram_rt::spawn_local_shared(async move");
+    assertThat(fetcher).contains("let body_fut = async {");
   }
 
   @Test
@@ -449,7 +457,7 @@ class RustCompilerGoldenTest {
     assertThat(RustCompilerMain.compile(sourceDir, outDir, RustCompilerMain.Target.WASM)).isTrue();
     String fetcher = Files.readString(outDir.resolve("system/fetcher.rs"));
     assertThat(fetcher)
-        .contains("crate::vajram_rt::fetch_text(_body_inputs.requestUrl.as_str())")
+        .contains("crate::vajram_rt::fetch_text(inputs.requestUrl.as_str())")
         .contains(".await");
   }
 
@@ -518,13 +526,19 @@ class RustCompilerGoldenTest {
 
     assertThat(RustCompilerMain.compile(sourceDir, outDir)).isTrue();
     String parent = Files.readString(outDir.resolve("graph/graph.rs"));
-    assertThat(parent).contains("let first = crate::vajram_rt::spawn_local_shared");
-    assertThat(parent).contains("let second = crate::vajram_rt::spawn_local_shared");
+    // `first`/`second` are independent (level 0) and joined together in one `join!`, before the
+    // level-1 facets that consume them are even declared - so neither blocks on the other, and
+    // `firstValue`/`secondValue` don't wait on one another either.
+    assertThat(parent).contains("let first_fut = async {");
+    assertThat(parent).contains("let second_fut = async {");
+    assertThat(parent).contains("let (first, second) = futures::join!(first_fut, second_fut);");
     assertThat(parent)
-        .contains("let firstValue =")
-        .contains("let secondValue =")
-        .contains("crate::vajram_rt::spawn_local_shared");
-    assertThat(parent.indexOf("let second =")).isLessThan(parent.indexOf("first.clone().await"));
+        .contains("let firstValue_fut = async { arena.alloc(first + \"\") };")
+        .contains("let secondValue_fut = async { arena.alloc(second + \"\") };")
+        .contains(
+            "let (firstValue, secondValue) = futures::join!(firstValue_fut, secondValue_fut);");
+    assertThat(parent.indexOf("let second_fut ="))
+        .isLessThan(parent.indexOf("let firstValue_fut ="));
   }
 
   @Test
@@ -584,7 +598,7 @@ class RustCompilerGoldenTest {
 
     assertThat(RustCompilerMain.compile(sourceDir, outDir)).isTrue();
     String generated = Files.readString(outDir.resolve("math/math.rs"));
-    assertThat(generated).contains("Rc::new(*inputs.left + *inputs.right)");
+    assertThat(generated).contains("arena.alloc(*inputs.left + *inputs.right)");
   }
 
   @Test
@@ -666,7 +680,8 @@ class RustCompilerGoldenTest {
         .contains("values")
         .contains(".into_iter()")
         .contains(".map(|it|")
-        .contains("LeafInputs { value: Rc::new(it) }")
+        .contains("LeafInputs {")
+        .contains("value: arena.alloc(it)")
         .doesNotContain("futures::future::join_all");
   }
 
