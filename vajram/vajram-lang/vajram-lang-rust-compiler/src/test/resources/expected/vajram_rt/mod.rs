@@ -42,11 +42,7 @@ pub trait Provider<T: ?Sized> {
 /// reference (`&AppContext<I>`) instead of `Rc<AppContext<I>>`, since nothing spawns detached
 /// tasks anymore that would need a `'static` owned handle to it.
 pub trait Injector: Sized {
-    fn get_provider<T: ?Sized + 'static>(
-        &self,
-        key: InjectionKey,
-        context: &AppContext<Self>,
-    ) -> Rc<dyn Provider<T>>;
+    fn get_provider<T: ?Sized + 'static>(&self, key: InjectionKey, context: &AppContext<Self>) -> Rc<dyn Provider<T>>;
 }
 
 pub struct DefaultInjector {
@@ -65,20 +61,13 @@ impl Default for DefaultInjector {
     fn default() -> Self {
         let mut providers: HashMap<InjectionKey, Rc<dyn Any>> = HashMap::new();
         let provider: Rc<dyn Provider<dyn ConsoleWriter>> = Rc::new(StdOutProvider);
-        providers.insert(
-            InjectionKey::new("lang.process.ConsoleWriter", &[]),
-            Rc::new(provider),
-        );
+        providers.insert(InjectionKey::new("lang.process.ConsoleWriter", &[]), Rc::new(provider));
         Self { providers }
     }
 }
 
 impl Injector for DefaultInjector {
-    fn get_provider<T: ?Sized + 'static>(
-        &self,
-        key: InjectionKey,
-        _context: &AppContext<Self>,
-    ) -> Rc<dyn Provider<T>> {
+    fn get_provider<T: ?Sized + 'static>(&self, key: InjectionKey, _context: &AppContext<Self>) -> Rc<dyn Provider<T>> {
         self.providers
             .get(&key)
             .and_then(|provider| provider.downcast_ref::<Rc<dyn Provider<T>>>())
@@ -105,16 +94,10 @@ impl<I: Injector> AppContext<I> {
 
     pub fn injection_instance<T: Any>(&self, key: &str, create: impl FnOnce() -> Rc<T>) -> Rc<T> {
         if let Some(instance) = self.injections.borrow().get(key) {
-            return Rc::clone(
-                instance
-                    .downcast_ref::<Rc<T>>()
-                    .expect("injection key has an incompatible type"),
-            );
+            return Rc::clone(instance.downcast_ref::<Rc<T>>().expect("injection key has an incompatible type"));
         }
         let instance = create();
-        self.injections
-            .borrow_mut()
-            .insert(key.to_owned(), Rc::new(Rc::clone(&instance)));
+        self.injections.borrow_mut().insert(key.to_owned(), Rc::new(Rc::clone(&instance)));
         instance
     }
 }

@@ -107,7 +107,8 @@ public final class OutsideProcessAnnotationProcessor implements VajramAnnotation
       emitCase(source, target, context.symbolTable().completionOf(target), context);
     }
     source.append("        _ => {\n");
-    source.append("            eprintln!(\"unknown outside-process Vajram: {}\", vajram);\n");
+    source.append(
+        "            eprintln!(\"Vajram {} has not been declared to be called from outside-process\", vajram);\n");
     source.append("            std::process::exit(2);\n");
     source.append("        }\n");
     source.append("    }\n");

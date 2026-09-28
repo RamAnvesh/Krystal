@@ -136,8 +136,8 @@ class RustCompilerGoldenTest {
     assertThat(RustCompilerMain.compile(sourceDir, outDir)).isTrue();
     String caller = Files.readString(outDir.resolve("lifecycle/caller.rs"));
     assertThat(caller).contains("pub async fn call");
-    assertThat(caller).contains("let value_fut = async {");
-    assertThat(caller).contains("let value = value_fut.await;");
+    assertThat(caller).contains("let value_fut = async move {");
+    assertThat(caller).contains("let value = value_fut.clone().await;");
   }
 
   @Test
@@ -364,7 +364,7 @@ class RustCompilerGoldenTest {
         """
         package fanout;
         vajram scalar() out void {
-          string* values = "not a collection";
+          string... values = "not a collection";
           { }
         }
         """);
@@ -383,7 +383,7 @@ class RustCompilerGoldenTest {
         """
         package fanout;
         vajram parent() out void {
-          string* values = leaf();
+          string... values = leaf();
           { }
         }
         """);
@@ -409,7 +409,7 @@ class RustCompilerGoldenTest {
     assertThat(RustCompilerMain.compile(sourceDir, outDir)).isTrue();
     String reader = Files.readString(outDir.resolve("system/reader.rs"));
     assertThat(reader).contains("tokio::fs::read_to_string(inputs.filePath.as_str())");
-    assertThat(reader).contains("let content_fut = async {");
+    assertThat(reader).contains("let content_fut = async move {");
   }
 
   @Test
@@ -435,7 +435,7 @@ class RustCompilerGoldenTest {
         .contains(".get(inputs.requestUrl.as_str())")
         .contains(".header(reqwest::header::USER_AGENT,");
     assertThat(fetcher).contains(".text()").contains(".expect(\"callHttp failed\")");
-    assertThat(fetcher).contains("let body_fut = async {");
+    assertThat(fetcher).contains("let body_fut = async move {");
   }
 
   @Test
@@ -526,19 +526,82 @@ class RustCompilerGoldenTest {
 
     assertThat(RustCompilerMain.compile(sourceDir, outDir)).isTrue();
     String parent = Files.readString(outDir.resolve("graph/graph.rs"));
-    // `first`/`second` are independent (level 0) and joined together in one `join!`, before the
-    // level-1 facets that consume them are even declared - so neither blocks on the other, and
-    // `firstValue`/`secondValue` don't wait on one another either.
-    assertThat(parent).contains("let first_fut = async {");
-    assertThat(parent).contains("let second_fut = async {");
-    assertThat(parent).contains("let (first, second) = futures::join!(first_fut, second_fut);");
+    // `first`/`second` are independent, and each is wrapped as a `Shared` future so it can be
+    // awaited by exactly the facet(s) that need it. `firstValue` only clones+awaits `first_fut`
+    // (never `second_fut`), and `secondValue` only clones+awaits `second_fut` - so neither of
+    // them can be blocked by the other's dependency, unlike a level-grouped join.
+    assertThat(parent).contains("let first_fut = async move {");
+    assertThat(parent).contains("let second_fut = async move {");
     assertThat(parent)
-        .contains("let firstValue_fut = async { arena.alloc(first + \"\") };")
-        .contains("let secondValue_fut = async { arena.alloc(second + \"\") };")
         .contains(
-            "let (firstValue, secondValue) = futures::join!(firstValue_fut, secondValue_fut);");
+            "        let _firstValue_needs_first = first_fut.clone();\n"
+                + "        let firstValue_fut = async move {\n"
+                + "            let first = _firstValue_needs_first.await;\n"
+                + "            &*arena.alloc(first + \"\")\n"
+                + "        }")
+        .contains(
+            "        let _secondValue_needs_second = second_fut.clone();\n"
+                + "        let secondValue_fut = async move {\n"
+                + "            let second = _secondValue_needs_second.await;\n"
+                + "            &*arena.alloc(second + \"\")\n"
+                + "        }")
+        .doesNotContain("_secondValue_needs_first")
+        .doesNotContain("_firstValue_needs_second")
+        .contains(
+            "let (first, second, firstValue, secondValue) = futures::join!(first_fut.clone(),"
+                + " second_fut.clone(), firstValue_fut.clone(), secondValue_fut.clone());");
     assertThat(parent.indexOf("let second_fut ="))
         .isLessThan(parent.indexOf("let firstValue_fut ="));
+  }
+
+  @Test
+  void eachFacetAwaitsOnlyItsOwnDependenciesNotUnrelatedSiblings(@TempDir Path tempDir)
+      throws IOException {
+    Path sourceDir = tempDir.resolve("vajram");
+    Path outDir = tempDir.resolve("out");
+    Files.createDirectories(sourceDir);
+    Files.writeString(
+        sourceDir.resolve("diamond.vajram"),
+        """
+        package diamond;
+        vajram leafA() out string { ~ { "a" } }
+        vajram leafB() out string { ~ { "b" } }
+        vajram leafC() out string { ~ { "c" } }
+        vajram diamond() out string {
+          string a = leafA();
+          string b = leafB();
+          string c = leafC();
+          string combined = a + b;
+          out ~ { combined }
+        }
+        """);
+
+    assertThat(RustCompilerMain.compile(sourceDir, outDir)).isTrue();
+    String diamond = Files.readString(outDir.resolve("diamond/diamond.rs"));
+    // `combined` depends on both `a` and `b`, but not on the unrelated independent `c` - it must
+    // clone+await exactly `a_fut` and `b_fut`, and never reference `c_fut` at all. This is the
+    // case the old level-grouped `join!` got wrong: `c` would have shared a level with `a`/`b`
+    // and `combined` would have been forced to wait on it regardless.
+    assertThat(diamond).contains("let a_fut = async move {");
+    assertThat(diamond).contains("let b_fut = async move {");
+    assertThat(diamond).contains("let c_fut = async move {");
+    assertThat(diamond)
+        .contains("let _combined_needs_a = a_fut.clone();")
+        .contains("let _combined_needs_b = b_fut.clone();")
+        .contains(
+            "let combined_fut = async move {\n"
+                + "            let a = _combined_needs_a.await;\n"
+                + "            let b = _combined_needs_b.await;\n"
+                + "            &*arena.alloc(a + b)\n"
+                + "        }");
+    String combinedBody =
+        diamond.substring(
+            diamond.indexOf("let combined_fut ="), diamond.indexOf("let (a, b, c, combined)"));
+    assertThat(combinedBody).doesNotContain("c_fut");
+    assertThat(diamond)
+        .contains(
+            "let (a, b, c, combined) = futures::join!(a_fut.clone(), b_fut.clone(),"
+                + " c_fut.clone(), combined_fut.clone());");
   }
 
   @Test
@@ -667,8 +730,8 @@ class RustCompilerGoldenTest {
         package fanout;
         vajram leaf(string value) out string { { value } }
         vajram parent() out List<string> {
-          string* values = ["one", "two"];
-          string* results = leaf(value =* values);
+          string... values = ["one", "two"];
+          string... results = leaf(value =... values);
           { results }
         }
         """);
