@@ -121,13 +121,13 @@ class RustCompilerGoldenTest {
         sourceDir.resolve("source.vajram"),
         """
         package lifecycle;
-        vajram laterLeaf() out string { ~~ { "leaf" } }
+        vajram laterLeaf() out string~ { ~~ { "leaf" } }
         """);
     Files.writeString(
         sourceDir.resolve("caller.vajram"),
         """
         package lifecycle;
-        vajram nowCaller() out string {
+        vajram nowCaller() out string~ {
           string value = laterLeaf();
           { value }
         }
@@ -490,7 +490,7 @@ class RustCompilerGoldenTest {
         sourceDir.resolve("dispatch.vajram"),
         """
         package external;
-        vajram greet(string name) out string permit callers `outsideProcess public {
+        vajram greet(string name) out string~ permit callers `outsideProcess public {
           ~ { name }
         }
         """);
@@ -513,9 +513,9 @@ class RustCompilerGoldenTest {
         sourceDir.resolve("graph.vajram"),
         """
         package graph;
-        vajram firstLeaf() out string { ~ { "first" } }
-        vajram secondLeaf() out string { ~ { "second" } }
-        vajram parent() out string {
+        vajram firstLeaf() out string~ { ~ { "first" } }
+        vajram secondLeaf() out string~ { ~ { "second" } }
+        vajram parent() out string~ {
           string first = firstLeaf();
           string second = secondLeaf();
           string firstValue = first + "";
@@ -564,10 +564,10 @@ class RustCompilerGoldenTest {
         sourceDir.resolve("diamond.vajram"),
         """
         package diamond;
-        vajram leafA() out string { ~ { "a" } }
-        vajram leafB() out string { ~ { "b" } }
-        vajram leafC() out string { ~ { "c" } }
-        vajram diamond() out string {
+        vajram leafA() out string~ { ~ { "a" } }
+        vajram leafB() out string~ { ~ { "b" } }
+        vajram leafC() out string~ { ~ { "c" } }
+        vajram diamond() out string~ {
           string a = leafA();
           string b = leafB();
           string c = leafC();

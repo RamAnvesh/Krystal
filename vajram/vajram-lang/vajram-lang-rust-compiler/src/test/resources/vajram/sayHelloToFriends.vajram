@@ -4,7 +4,7 @@ package com.flipkart.krystal.vajram_lang.samples.friends;
       (
       string userId,
       int? numberOfFriends)
-    out string{
+    out string~{
 
   UserInfo userInfo = getUserInfo(userId = userId);
 
